@@ -129,6 +129,7 @@ public class ReportPortalRestAssuredLoggingFilter implements OrderedFilter {
 
 		return ofNullable(headers).map(nonnullHeaders -> StreamSupport.stream(nonnullHeaders.spliterator(), false)
 				.map(headerConverter)
+				.filter(Objects::nonNull)
 				.collect(Collectors.joining("\n"))).orElse("");
 	}
 
@@ -140,6 +141,7 @@ public class ReportPortalRestAssuredLoggingFilter implements OrderedFilter {
 
 		return ofNullable(cookies).map(nonnullCookies -> StreamSupport.stream(cookies.spliterator(), false)
 				.map(cookieConverter)
+				.filter(Objects::nonNull)
 				.collect(Collectors.joining("\n"))).orElse("");
 	}
 

@@ -17,16 +17,20 @@
 package com.epam.reportportal.restassured;
 
 import com.epam.reportportal.listeners.ItemStatus;
+import com.epam.reportportal.listeners.LogLevel;
 import com.epam.reportportal.message.ReportPortalMessage;
 import com.epam.reportportal.message.TypeAwareByteSource;
 import com.epam.reportportal.service.Launch;
 import com.epam.reportportal.service.ReportPortal;
 import com.epam.reportportal.service.step.StepReporter;
+import com.epam.reportportal.support.Prettiers;
 import com.epam.reportportal.utils.files.Utils;
 import com.google.common.io.ByteSource;
 import io.restassured.filter.FilterContext;
 import io.restassured.filter.OrderedFilter;
+import io.restassured.http.Cookie;
 import io.restassured.http.Cookies;
+import io.restassured.http.Header;
 import io.restassured.http.Headers;
 import io.restassured.internal.support.Prettifier;
 import io.restassured.parsing.Parser;
@@ -39,10 +43,8 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.io.File;
 import java.io.IOException;
-import java.util.Arrays;
-import java.util.Date;
-import java.util.HashSet;
-import java.util.Set;
+import java.util.*;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
@@ -50,9 +52,9 @@ import static java.util.Optional.ofNullable;
 
 public class ReportPortalRestAssuredLoggingFilter implements OrderedFilter {
 
-	private static final String MULTIPART_TYPE = ContentType.MULTIPART_FORM_DATA.getMimeType();
+	private static final Set<String> MULTIPART_TYPES = Collections.singleton(ContentType.MULTIPART_FORM_DATA.getMimeType());
 
-	private static final Set<String> TEXT_CONTENT_TYPES = new HashSet<>(Arrays.asList(ContentType.APPLICATION_JSON.getMimeType(),
+	private static final Set<String> TEXT_TYPES = new HashSet<>(Arrays.asList(ContentType.APPLICATION_JSON.getMimeType(),
 			ContentType.TEXT_PLAIN.getMimeType(),
 			ContentType.TEXT_HTML.getMimeType(),
 			ContentType.TEXT_XML.getMimeType(),
@@ -60,7 +62,7 @@ public class ReportPortalRestAssuredLoggingFilter implements OrderedFilter {
 			ContentType.DEFAULT_TEXT.getMimeType()
 	));
 
-	private static final Set<String> IMAGE_CONTENT_TYPES = new HashSet<>(Arrays.asList(ContentType.IMAGE_BMP.getMimeType(),
+	private static final Set<String> IMAGE_TYPES = new HashSet<>(Arrays.asList(ContentType.IMAGE_BMP.getMimeType(),
 			ContentType.IMAGE_GIF.getMimeType(),
 			ContentType.IMAGE_JPEG.getMimeType(),
 			ContentType.IMAGE_PNG.getMimeType(),
@@ -69,14 +71,49 @@ public class ReportPortalRestAssuredLoggingFilter implements OrderedFilter {
 			ContentType.IMAGE_WEBP.getMimeType()
 	));
 
-	private static final String REMOVED_TAG = "&lt;removed&gt;";
+	private static final Function<Header, String> DEFAULT_HEADER_CONVERTER = h -> h.getName() + ": " + h.getValue();
+
+	private static final Function<Cookie, String> DEFAULT_COOKIE_CONVERTER = Cookie::toString;
+
+	private static final Map<String, Function<String, String>> DEFAULT_PRETTIERS = new HashMap<String, Function<String, String>>() {{
+		put(ContentType.APPLICATION_XML.getMimeType(), Prettiers.XML_PRETTIER);
+		put(ContentType.APPLICATION_SOAP_XML.getMimeType(), Prettiers.XML_PRETTIER);
+		put(ContentType.APPLICATION_ATOM_XML.getMimeType(), Prettiers.XML_PRETTIER);
+		put(ContentType.APPLICATION_SVG_XML.getMimeType(), Prettiers.XML_PRETTIER);
+		put(ContentType.APPLICATION_XHTML_XML.getMimeType(), Prettiers.XML_PRETTIER);
+		put(ContentType.TEXT_XML.getMimeType(), Prettiers.XML_PRETTIER);
+		put(ContentType.APPLICATION_JSON.getMimeType(), Prettiers.JSON_PRETTIER);
+		put("text/json", Prettiers.JSON_PRETTIER);
+		put(ContentType.TEXT_HTML.getMimeType(), Prettiers.HTML_PRETTIER);
+	}};
 
 	private final int order;
 	private final String logLevel;
 
-	public ReportPortalRestAssuredLoggingFilter(int filterOrder, String defaultLogLevel) {
+	private final Function<Header, String> headerConverter;
+	private final Function<Cookie, String> cookieConverter;
+
+	private Set<String> textContentTypes = TEXT_TYPES;
+	private Set<String> imageContentTypes = IMAGE_TYPES;
+	private Set<String> multipartContentTypes = MULTIPART_TYPES;
+
+	private Map<String, Function<String, String>> contentPrettiers = DEFAULT_PRETTIERS;
+
+	public ReportPortalRestAssuredLoggingFilter(int filterOrder, @Nonnull LogLevel defaultLogLevel,
+			@Nullable Function<Header, String> headerConvertFunction, @Nullable Function<Cookie, String> cookieConvertFunction) {
 		order = filterOrder;
-		logLevel = defaultLogLevel;
+		logLevel = defaultLogLevel.name();
+		headerConverter = headerConvertFunction;
+		cookieConverter = cookieConvertFunction;
+	}
+
+	public ReportPortalRestAssuredLoggingFilter(int filterOrder, @Nonnull LogLevel defaultLogLevel,
+			@Nullable Function<Header, String> headerConvertFunction) {
+		this(filterOrder, defaultLogLevel, headerConvertFunction, DEFAULT_COOKIE_CONVERTER);
+	}
+
+	public ReportPortalRestAssuredLoggingFilter(int filterOrder, @Nonnull LogLevel defaultLogLevel) {
+		this(filterOrder, defaultLogLevel, DEFAULT_HEADER_CONVERTER, DEFAULT_COOKIE_CONVERTER);
 	}
 
 	@Override
@@ -86,23 +123,37 @@ public class ReportPortalRestAssuredLoggingFilter implements OrderedFilter {
 
 	@Nonnull
 	private String convertHeaders(@Nullable Headers headers) {
-		return ofNullable(headers).map(nonnullHeaders -> StreamSupport.stream(nonnullHeaders.spliterator(), false).map(h -> {
-			String value = "Authorization".equals(h.getName()) ? REMOVED_TAG : h.getValue();
-			return h.getName() + ": " + value;
-		}).collect(Collectors.joining("\n"))).orElse("");
+		if (headerConverter == null) {
+			return "";
+		}
+
+		return ofNullable(headers).map(nonnullHeaders -> StreamSupport.stream(nonnullHeaders.spliterator(), false)
+				.map(headerConverter)
+				.collect(Collectors.joining("\n"))).orElse("");
+	}
+
+	@Nonnull
+	private String convertCookies(@Nullable Cookies cookies) {
+		if (cookieConverter == null) {
+			return "";
+		}
+
+		return ofNullable(cookies).map(nonnullCookies -> StreamSupport.stream(cookies.spliterator(), false)
+				.map(cookieConverter)
+				.collect(Collectors.joining("\n"))).orElse("");
 	}
 
 	private String formatTextHeader(Headers headers, Cookies cookies) {
-		String result = "";
+		StringBuilder result = new StringBuilder();
 		String headersString = convertHeaders(headers);
 		if (!headersString.isEmpty()) {
-			result += "\n\n**Headers**\n" + headersString;
+			result.append("\n\n**Headers**\n").append(headersString);
 		}
-		String cookiesString = ofNullable(cookies).map(Cookies::toString).orElse("");
+		String cookiesString = convertCookies(cookies);
 		if (!cookiesString.isEmpty()) {
-			result += "\n\n**Cookies**\n" + cookiesString;
+			result.append("\n\n**Cookies**\n").append(cookiesString);
 		}
-		return result;
+		return result.toString();
 	}
 
 	private String formatTextEntity(Headers headers, Cookies cookies, String body, String contentType) {
@@ -120,57 +171,58 @@ public class ReportPortalRestAssuredLoggingFilter implements OrderedFilter {
 		}
 	}
 
+	private void logMultiPartRequest(FilterableRequestSpecification request) {
+		Date currentDate = new Date();
+		ReportPortal.emitLog(formatTextHeader(request.getHeaders(), request.getCookies()), logLevel, currentDate);
+		request.getMultiPartParams().forEach(it -> {
+			Date myDate = new Date(currentDate.getTime() + 1);
+			String partMimeType = it.getMimeType();
+			if (TEXT_TYPES.contains(partMimeType)) {
+				String body = it.getContent().toString();
+				ReportPortal.emitLog("**Body part**\n" + (contentPrettiers.containsKey(partMimeType) ?
+						contentPrettiers.get(partMimeType).apply(body) :
+						body), logLevel, myDate);
+			} else {
+				Object body = it.getContent();
+				if (body != null) {
+					if (body instanceof File) {
+						try {
+							TypeAwareByteSource file = Utils.getFile((File) body);
+							attachAsBinary("**Body part**\n" + file.getMediaType(), file.read(), file.getMediaType());
+						} catch (IOException exc) {
+							ReportPortal.emitLog("**Body part**\nUnable to read file: " + exc.getMessage(), "ERROR", currentDate);
+						}
+					} else {
+						attachAsBinary("**Body part**\n" + partMimeType, (byte[]) body, partMimeType);
+					}
+				} else {
+					ReportPortal.emitLog("**Body part**\nNULL", logLevel, currentDate);
+				}
+			}
+		});
+	}
+
 	private void emitLog(FilterableRequestSpecification request) {
 		String logText = String.format("**>>> REQUEST**" + "\n%s to %s", request.getMethod(), request.getURI());
 		String rqContent = ContentType.parse(request.getContentType()).getMimeType();
 
-		if (TEXT_CONTENT_TYPES.contains(rqContent)) {
+		if (textContentTypes.contains(rqContent)) {
 			ReportPortal.emitLog(logText + formatTextEntity(request.getHeaders(), request.getCookies(), request.getBody(), rqContent),
 					logLevel,
 					new Date()
 			);
-		} else if (IMAGE_CONTENT_TYPES.contains(rqContent)) {
+		} else if (imageContentTypes.contains(rqContent)) {
 			attachAsBinary(logText, request.getBody(), rqContent);
-		} else if (MULTIPART_TYPE.equals(rqContent)) {
+		} else if (multipartContentTypes.contains(rqContent)) {
 			if (request.getMultiPartParams().isEmpty()) {
 				ReportPortal.emitLog(logText + formatTextHeader(request.getHeaders(), request.getCookies()), logLevel, new Date());
 				return;
 			}
 
-			StepReporter sr = ofNullable(Launch.currentLaunch()).map(Launch::getStepReporter).orElse(null);
-			ofNullable(sr).ifPresent(r -> r.sendStep(ItemStatus.INFO, logText));
-			Date currentDate = new Date();
-			ReportPortal.emitLog(formatTextHeader(request.getHeaders(), request.getCookies()), logLevel, currentDate);
-			request.getMultiPartParams().forEach(it -> {
-				Date myDate = new Date(currentDate.getTime() + 1);
-				String partMimeType = it.getMimeType();
-				if (TEXT_CONTENT_TYPES.contains(partMimeType)) {
-					ReportPortal.emitLog(
-							"**Body part**\n" + new Prettifier().prettify(it.getContent().toString(),
-									Parser.fromContentType(it.getMimeType())
-							),
-							logLevel,
-							myDate
-					);
-				} else {
-					Object body = it.getContent();
-					if (body != null) {
-						if (body instanceof File) {
-							try {
-								TypeAwareByteSource file = Utils.getFile((File) body);
-								attachAsBinary("**Body part**\n" + file.getMediaType(), file.read(), file.getMediaType());
-							} catch (IOException exc) {
-								ReportPortal.emitLog("**Body part**\nUnable to read file: " + exc.getMessage(), "ERROR", currentDate);
-							}
-						} else {
-							attachAsBinary("**Body part**\n" + rqContent, (byte[]) body, rqContent);
-						}
-					} else {
-						ReportPortal.emitLog("**Body part**\nNULL", logLevel, currentDate);
-					}
-				}
-			});
-			ofNullable(sr).ifPresent(StepReporter::finishPreviousStep);
+			Optional<StepReporter> sr = ofNullable(Launch.currentLaunch()).map(Launch::getStepReporter);
+			sr.ifPresent(r -> r.sendStep(ItemStatus.INFO, logText));
+			logMultiPartRequest(request);
+			sr.ifPresent(StepReporter::finishPreviousStep);
 		} else {
 			attachAsBinary(logText, request.getBody(), rqContent);
 		}
@@ -184,7 +236,7 @@ public class ReportPortalRestAssuredLoggingFilter implements OrderedFilter {
 
 		String logText = "**<<< RESPONSE**" + "\n" + response.getStatusLine();
 		String mimeType = ContentType.parse(response.getContentType()).getMimeType();
-		if (TEXT_CONTENT_TYPES.contains(mimeType)) {
+		if (TEXT_TYPES.contains(mimeType)) {
 			logText += formatTextEntity(response.getHeaders(), response.getDetailedCookies(), response.getBody().asString(), mimeType);
 			ReportPortal.emitLog(logText, logLevel, new Date());
 		} else {
@@ -198,5 +250,21 @@ public class ReportPortalRestAssuredLoggingFilter implements OrderedFilter {
 		Response response = ctx.next(requestSpec, responseSpec);
 		emitLog(response);
 		return response;
+	}
+
+	public void setTextContentTypes(Set<String> textContentTypes) {
+		this.textContentTypes = textContentTypes;
+	}
+
+	public void setImageContentTypes(Set<String> imageContentTypes) {
+		this.imageContentTypes = imageContentTypes;
+	}
+
+	public void setMultipartContentTypes(Set<String> multipartContentTypes) {
+		this.multipartContentTypes = multipartContentTypes;
+	}
+
+	public void setContentPrettiers(Map<String, Function<String, String>> contentPrettiers) {
+		this.contentPrettiers = contentPrettiers;
 	}
 }

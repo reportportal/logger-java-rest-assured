@@ -44,7 +44,7 @@ dependencies {
 
     api 'io.rest-assured:rest-assured:5.0.1'
 
-    implementation 'org.slf4j:slf4j-api:1.7.36'
+    implementation 'org.jsoup:jsoup:1.14.3'
 
     testImplementation('com.github.reportportal:agent-java-test-utils:236a68c')
 

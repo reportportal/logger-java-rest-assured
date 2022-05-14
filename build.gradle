@@ -54,8 +54,6 @@ dependencies {
     testImplementation "org.junit.jupiter:junit-jupiter-params:${junit5_version}"
     testImplementation "org.junit.jupiter:junit-jupiter-engine:${junit5_version}"
 
-    testImplementation 'org.aspectj:aspectjweaver:1.9.2'
-
     testImplementation 'org.hamcrest:hamcrest-core:2.2'
     testImplementation "org.mockito:mockito-core:${mockito_version}"
     testImplementation "org.mockito:mockito-inline:${mockito_version}"
@@ -71,13 +69,6 @@ dependencies {
 test {
     useJUnitPlatform()
     outputs.upToDateWhen { false }
-    exclude('com/epam/reportportal/rest-assured/integration/feature/**')
-    maxParallelForks(5) // it's forks - separate JVMs, should not interfere each other
-    doFirst {
-        def weaver = configurations.testRuntimeClasspath.find { it.name.contains('aspectjweaver') }
-        jvmArgs += "-javaagent:$weaver"
-    }
-    environment 'AGENT_NO_ANALYTICS', '1'
 }
 
 wrapper {

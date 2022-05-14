@@ -16,6 +16,7 @@
 
 package com.epam.reportportal.restassured;
 
+import com.epam.reportportal.internal.support.Prettiers;
 import com.epam.reportportal.listeners.ItemStatus;
 import com.epam.reportportal.listeners.LogLevel;
 import com.epam.reportportal.message.ReportPortalMessage;
@@ -23,7 +24,6 @@ import com.epam.reportportal.message.TypeAwareByteSource;
 import com.epam.reportportal.service.Launch;
 import com.epam.reportportal.service.ReportPortal;
 import com.epam.reportportal.service.step.StepReporter;
-import com.epam.reportportal.support.Prettiers;
 import com.epam.reportportal.utils.files.Utils;
 import com.google.common.io.ByteSource;
 import io.restassured.filter.FilterContext;
@@ -32,9 +32,8 @@ import io.restassured.http.Cookie;
 import io.restassured.http.Cookies;
 import io.restassured.http.Header;
 import io.restassured.http.Headers;
-import io.restassured.internal.support.Prettifier;
-import io.restassured.parsing.Parser;
 import io.restassured.response.Response;
+import io.restassured.response.ResponseBodyData;
 import io.restassured.specification.FilterableRequestSpecification;
 import io.restassured.specification.FilterableResponseSpecification;
 import org.apache.http.entity.ContentType;
@@ -54,7 +53,8 @@ public class ReportPortalRestAssuredLoggingFilter implements OrderedFilter {
 
 	private static final Set<String> MULTIPART_TYPES = Collections.singleton(ContentType.MULTIPART_FORM_DATA.getMimeType());
 
-	private static final Set<String> TEXT_TYPES = new HashSet<>(Arrays.asList(ContentType.APPLICATION_JSON.getMimeType(),
+	private static final Set<String> TEXT_TYPES = new HashSet<>(Arrays.asList(
+			ContentType.APPLICATION_JSON.getMimeType(),
 			ContentType.TEXT_PLAIN.getMimeType(),
 			ContentType.TEXT_HTML.getMimeType(),
 			ContentType.TEXT_XML.getMimeType(),
@@ -62,7 +62,8 @@ public class ReportPortalRestAssuredLoggingFilter implements OrderedFilter {
 			ContentType.DEFAULT_TEXT.getMimeType()
 	));
 
-	private static final Set<String> IMAGE_TYPES = new HashSet<>(Arrays.asList(ContentType.IMAGE_BMP.getMimeType(),
+	private static final Set<String> IMAGE_TYPES = new HashSet<>(Arrays.asList(
+			ContentType.IMAGE_BMP.getMimeType(),
 			ContentType.IMAGE_GIF.getMimeType(),
 			ContentType.IMAGE_JPEG.getMimeType(),
 			ContentType.IMAGE_PNG.getMimeType(),
@@ -145,7 +146,7 @@ public class ReportPortalRestAssuredLoggingFilter implements OrderedFilter {
 				.collect(Collectors.joining("\n"))).orElse("");
 	}
 
-	private String formatTextHeader(Headers headers, Cookies cookies) {
+	private String formatTextHeader(@Nullable Headers headers, @Nullable Cookies cookies) {
 		StringBuilder result = new StringBuilder();
 		String headersString = convertHeaders(headers);
 		if (!headersString.isEmpty()) {
@@ -158,14 +159,15 @@ public class ReportPortalRestAssuredLoggingFilter implements OrderedFilter {
 		return result.toString();
 	}
 
-	private String formatTextEntity(Headers headers, Cookies cookies, String body, String contentType) {
+	private String formatTextEntity(@Nullable Headers headers, @Nullable Cookies cookies, @Nullable String body,
+			@Nonnull String contentType) {
 		String result = formatTextHeader(headers, cookies);
-		return ofNullable(body).map(b -> result + "\n\n**Body**\n```\n" + new Prettifier().prettify(body,
-				Parser.fromContentType(contentType)
-		) + "\n```").orElse(result);
+		return ofNullable(body).map(b -> result + "\n\n**Body**\n```\n" + (contentPrettiers.containsKey(contentType) ?
+				contentPrettiers.get(contentType).apply(body) :
+				body) + "\n```").orElse(result);
 	}
 
-	private void attachAsBinary(String message, byte[] attachment, String contentType) {
+	private void attachAsBinary(@Nullable String message, @Nullable byte[] attachment, @Nonnull String contentType) {
 		if (attachment == null) {
 			ReportPortal.emitLog(message, logLevel, new Date());
 		} else {
@@ -209,7 +211,8 @@ public class ReportPortalRestAssuredLoggingFilter implements OrderedFilter {
 		String rqContent = ContentType.parse(request.getContentType()).getMimeType();
 
 		if (textContentTypes.contains(rqContent)) {
-			ReportPortal.emitLog(logText + formatTextEntity(request.getHeaders(), request.getCookies(), request.getBody(), rqContent),
+			ReportPortal.emitLog(
+					logText + formatTextEntity(request.getHeaders(), request.getCookies(), request.getBody(), rqContent),
 					logLevel,
 					new Date()
 			);
@@ -236,10 +239,15 @@ public class ReportPortalRestAssuredLoggingFilter implements OrderedFilter {
 			return;
 		}
 
-		String logText = "**<<< RESPONSE**" + "\n" + response.getStatusLine();
+		String logText = "**<<< RESPONSE**\n" + response.getStatusLine();
 		String mimeType = ContentType.parse(response.getContentType()).getMimeType();
 		if (TEXT_TYPES.contains(mimeType)) {
-			logText += formatTextEntity(response.getHeaders(), response.getDetailedCookies(), response.getBody().asString(), mimeType);
+			logText += formatTextEntity(
+					response.getHeaders(),
+					response.getDetailedCookies(),
+					ofNullable(response.getBody()).map(ResponseBodyData::asString).orElse(null),
+					mimeType
+			);
 			ReportPortal.emitLog(logText, logLevel, new Date());
 		} else {
 			attachAsBinary(logText, response.getBody().asByteArray(), mimeType);

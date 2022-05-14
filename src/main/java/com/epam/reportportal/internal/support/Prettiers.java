@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.epam.reportportal.support;
+package com.epam.reportportal.internal.support;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -38,13 +38,18 @@ import java.io.StringWriter;
 import java.io.Writer;
 import java.util.function.Function;
 
+import static org.jsoup.nodes.Document.OutputSettings;
+
 public class Prettiers {
 
+	private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+
+	private static final OutputSettings OUTPUT_SETTINGS = new OutputSettings().indentAmount(2);
+
 	public static final Function<String, String> JSON_PRETTIER = json -> {
-		ObjectMapper mapper = new ObjectMapper();
-		JsonNode node = mapper.valueToTree(json);
 		try {
-			return mapper.writerWithDefaultPrettyPrinter().writeValueAsString(node);
+			JsonNode node = OBJECT_MAPPER.readTree(json);
+			return OBJECT_MAPPER.writerWithDefaultPrettyPrinter().writeValueAsString(node).trim();
 		} catch (JsonProcessingException e) {
 			return null;
 		}
@@ -64,13 +69,13 @@ public class Prettiers {
 
 			Writer out = new StringWriter();
 			transformer.transform(new DOMSource(document), new StreamResult(out));
-			return out.toString();
+			return out.toString().trim();
 		} catch (IOException | ParserConfigurationException | TransformerException | SAXException e) {
 			return null;
 		}
 	};
 
-	public static final Function<String, String> HTML_PRETTIER = html -> Jsoup.parse(html).body().html();
+	public static final Function<String, String> HTML_PRETTIER = html -> Jsoup.parse(html).outputSettings(OUTPUT_SETTINGS).html().trim();
 
 	private Prettiers() {
 		throw new IllegalStateException("Static only class");

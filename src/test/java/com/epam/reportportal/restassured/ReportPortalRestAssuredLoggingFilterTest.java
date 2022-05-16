@@ -36,6 +36,7 @@ import org.apache.http.entity.ContentType;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
@@ -48,7 +49,8 @@ import java.util.function.Function;
 
 import static java.util.Optional.ofNullable;
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.*;
+import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.hasSize;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
@@ -105,7 +107,8 @@ public class ReportPortalRestAssuredLoggingFilterTest {
 		);
 	}
 
-	private ArgumentCaptor<String> runFilterTextMessageCapture(FilterableRequestSpecification requestSpecification, Response responseObject) {
+	private ArgumentCaptor<String> runFilterTextMessageCapture(FilterableRequestSpecification requestSpecification,
+			Response responseObject) {
 		ArgumentCaptor<String> logCapture = ArgumentCaptor.forClass(String.class);
 		try (MockedStatic<ReportPortal> utilities = Mockito.mockStatic(ReportPortal.class)) {
 			utilities.when(() -> ReportPortal.emitLog(logCapture.capture(), anyString(), any(Date.class))).thenReturn(Boolean.TRUE);
@@ -117,7 +120,8 @@ public class ReportPortalRestAssuredLoggingFilterTest {
 		return logCapture;
 	}
 
-	private ArgumentCaptor<ReportPortalMessage> runFilterComplexMessageCapture(FilterableRequestSpecification requestSpecification, Response responseObject) {
+	private ArgumentCaptor<ReportPortalMessage> runFilterComplexMessageCapture(FilterableRequestSpecification requestSpecification,
+			Response responseObject) {
 		ArgumentCaptor<ReportPortalMessage> logCapture = ArgumentCaptor.forClass(ReportPortalMessage.class);
 		try (MockedStatic<ReportPortal> utilities = Mockito.mockStatic(ReportPortal.class)) {
 			utilities.when(() -> ReportPortal.emitLog(logCapture.capture(), anyString(), any(Date.class))).thenReturn(Boolean.TRUE);
@@ -249,18 +253,26 @@ public class ReportPortalRestAssuredLoggingFilterTest {
 		assertThat(logs.get(1), equalTo(EMPTY_RESPONSE));
 	}
 
-	@Test
-	@SuppressWarnings("rawtypes")
-	public void test_rest_assured_logger_image_body() throws IOException {
-		String mimeType = ContentType.IMAGE_JPEG.getMimeType();
-		FilterableRequestSpecification requestSpecification = mockBasicRequest(mimeType);
-		byte[] image = ofNullable(this.getClass().getClassLoader().getResourceAsStream("pug/lucky.jpg")).map(is -> {
+	@SuppressWarnings("SameParameterValue")
+	private byte[] getResource(String imagePath) {
+		return ofNullable(this.getClass().getClassLoader().getResourceAsStream(imagePath)).map(is -> {
 			try {
 				return Utils.readInputStreamToBytes(is);
 			} catch (IOException e) {
 				return null;
 			}
 		}).orElse(null);
+	}
+
+	private static final String IMAGE_TYPE = "image/jpeg";
+	private static final String WILDCARD_TYPE = "*/*";
+
+	@ParameterizedTest
+	@ValueSource(strings = { IMAGE_TYPE, WILDCARD_TYPE })
+	@SuppressWarnings("rawtypes")
+	public void test_rest_assured_logger_image_body(String mimeType) throws IOException {
+		FilterableRequestSpecification requestSpecification = mockBasicRequest(mimeType);
+		byte[] image = getResource("pug/lucky.jpg");
 		when(requestSpecification.getBody()).thenReturn(image);
 
 		Response responseObject = mockBasicResponse(mimeType);

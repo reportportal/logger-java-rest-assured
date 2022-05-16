@@ -62,16 +62,6 @@ public class ReportPortalRestAssuredLoggingFilter implements OrderedFilter {
 			ContentType.DEFAULT_TEXT.getMimeType()
 	));
 
-	private static final Set<String> IMAGE_TYPES = new HashSet<>(Arrays.asList(
-			ContentType.IMAGE_BMP.getMimeType(),
-			ContentType.IMAGE_GIF.getMimeType(),
-			ContentType.IMAGE_JPEG.getMimeType(),
-			ContentType.IMAGE_PNG.getMimeType(),
-			ContentType.IMAGE_SVG.getMimeType(),
-			ContentType.IMAGE_TIFF.getMimeType(),
-			ContentType.IMAGE_WEBP.getMimeType()
-	));
-
 	private static final Function<Header, String> DEFAULT_HEADER_CONVERTER = h -> h.getName() + ": " + h.getValue();
 
 	private static final Function<Cookie, String> DEFAULT_COOKIE_CONVERTER = Cookie::toString;
@@ -95,7 +85,6 @@ public class ReportPortalRestAssuredLoggingFilter implements OrderedFilter {
 	private final Function<Cookie, String> cookieConverter;
 
 	private Set<String> textContentTypes = TEXT_TYPES;
-	private Set<String> imageContentTypes = IMAGE_TYPES;
 	private Set<String> multipartContentTypes = MULTIPART_TYPES;
 
 	private Map<String, Function<String, String>> contentPrettiers = DEFAULT_PRETTIERS;
@@ -216,8 +205,6 @@ public class ReportPortalRestAssuredLoggingFilter implements OrderedFilter {
 					logLevel,
 					new Date()
 			);
-		} else if (imageContentTypes.contains(rqContent)) {
-			attachAsBinary(logText, request.getBody(), rqContent);
 		} else if (multipartContentTypes.contains(rqContent)) {
 			if (request.getMultiPartParams().isEmpty()) {
 				ReportPortal.emitLog(logText + formatTextHeader(request.getHeaders(), request.getCookies()), logLevel, new Date());
@@ -264,10 +251,6 @@ public class ReportPortalRestAssuredLoggingFilter implements OrderedFilter {
 
 	public void setTextContentTypes(Set<String> textContentTypes) {
 		this.textContentTypes = textContentTypes;
-	}
-
-	public void setImageContentTypes(Set<String> imageContentTypes) {
-		this.imageContentTypes = imageContentTypes;
 	}
 
 	public void setMultipartContentTypes(Set<String> multipartContentTypes) {

@@ -1,6 +1,8 @@
 # Changelog
 
 ## [Unreleased]
+
+## [5.0.0]
 ### Added
 - Initial release of REST Assured logger, by @HardNorth
 

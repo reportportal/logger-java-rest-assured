@@ -17,8 +17,13 @@
 package com.epam.reportportal.restassured;
 
 import com.epam.reportportal.internal.support.Prettiers;
+import com.epam.reportportal.listeners.ItemStatus;
 import com.epam.reportportal.listeners.LogLevel;
+import com.epam.reportportal.message.ReportPortalMessage;
+import com.epam.reportportal.service.Launch;
 import com.epam.reportportal.service.ReportPortal;
+import com.epam.reportportal.service.step.StepReporter;
+import com.epam.reportportal.utils.files.Utils;
 import io.restassured.filter.FilterContext;
 import io.restassured.http.Cookie;
 import io.restassured.http.Cookies;
@@ -28,30 +33,37 @@ import io.restassured.response.Response;
 import io.restassured.response.ResponseBody;
 import io.restassured.specification.FilterableRequestSpecification;
 import io.restassured.specification.FilterableResponseSpecification;
+import io.restassured.specification.MultiPartSpecification;
 import io.restassured.specification.RequestSender;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.tuple.Triple;
 import org.apache.http.HttpHeaders;
+import org.apache.http.entity.ContentType;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 
-import java.util.Arrays;
-import java.util.Date;
-import java.util.List;
+import java.io.File;
+import java.io.IOException;
+import java.util.*;
+import java.util.function.Consumer;
 import java.util.function.Function;
 
+import static java.util.Optional.ofNullable;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasSize;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 public class ReportPortalRestAssuredLoggingFilterTest {
 
+	private static final String IMAGE = "pug/lucky.jpg";
 	private static final String HTML_TYPE = "text/html";
 	private static final String JSON_TYPE = "application/json";
 	private static final String METHOD = "POST";
@@ -101,16 +113,57 @@ public class ReportPortalRestAssuredLoggingFilterTest {
 		);
 	}
 
-	private ArgumentCaptor<String> runFilter(FilterableRequestSpecification requestSpecification, Response responseObject) {
-		ArgumentCaptor<String> logCapture = ArgumentCaptor.forClass(String.class);
+	private void runFilter(FilterableRequestSpecification requestSpecification, Response responseObject,
+			Consumer<MockedStatic<ReportPortal>> mocks) {
 		try (MockedStatic<ReportPortal> utilities = Mockito.mockStatic(ReportPortal.class)) {
-			utilities.when(() -> ReportPortal.emitLog(logCapture.capture(), anyString(), any(Date.class))).thenReturn(Boolean.TRUE);
+			mocks.accept(utilities);
 			new ReportPortalRestAssuredLoggingFilter(42, LogLevel.INFO).filter(requestSpecification,
 					null,
 					getFilterContext(responseObject)
 			);
 		}
-		return logCapture;
+	}
+
+	private List<String> runFilterTextMessageCapture(FilterableRequestSpecification requestSpecification, Response responseObject) {
+		ArgumentCaptor<String> logCapture = ArgumentCaptor.forClass(String.class);
+		runFilter(requestSpecification,
+				responseObject,
+				mock -> mock.when(() -> ReportPortal.emitLog(logCapture.capture(), anyString(), any(Date.class))).thenReturn(Boolean.TRUE)
+		);
+		return logCapture.getAllValues();
+	}
+
+	private List<ReportPortalMessage> runFilterBinaryMessageCapture(FilterableRequestSpecification requestSpecification,
+			Response responseObject) {
+		ArgumentCaptor<ReportPortalMessage> logCapture = ArgumentCaptor.forClass(ReportPortalMessage.class);
+		runFilter(requestSpecification,
+				responseObject,
+				mock -> mock.when(() -> ReportPortal.emitLog(logCapture.capture(), anyString(), any(Date.class))).thenReturn(Boolean.TRUE)
+		);
+		return logCapture.getAllValues();
+	}
+
+	@SuppressWarnings("SameParameterValue")
+	private Triple<List<String>, List<String>, List<ReportPortalMessage>> runFilterComplexMessageCapture(
+			FilterableRequestSpecification requestSpecification, Response responseObject) {
+		ArgumentCaptor<String> stepCaptor = ArgumentCaptor.forClass(String.class);
+		ArgumentCaptor<String> stringArgumentCaptor = ArgumentCaptor.forClass(String.class);
+		ArgumentCaptor<ReportPortalMessage> messageArgumentCaptor = ArgumentCaptor.forClass(ReportPortalMessage.class);
+		try (MockedStatic<Launch> utilities = Mockito.mockStatic(Launch.class)) {
+			Launch launch = mock(Launch.class);
+			StepReporter reporter = mock(StepReporter.class);
+			utilities.when(Launch::currentLaunch).thenReturn(launch);
+			when(launch.getStepReporter()).thenReturn(reporter);
+			doNothing().when(reporter).sendStep(any(ItemStatus.class), stepCaptor.capture());
+			runFilter(requestSpecification, responseObject, mock -> {
+				mock.when(() -> ReportPortal.emitLog(stringArgumentCaptor.capture(), anyString(), any(Date.class)))
+						.thenReturn(Boolean.TRUE);
+				mock.when(() -> ReportPortal.emitLog(messageArgumentCaptor.capture(), anyString(), any(Date.class)))
+						.thenReturn(Boolean.TRUE);
+			});
+		}
+
+		return Triple.of(stepCaptor.getAllValues(), stringArgumentCaptor.getAllValues(), messageArgumentCaptor.getAllValues());
 	}
 
 	private static FilterableRequestSpecification mockBasicRequest(String contentType) {
@@ -133,9 +186,8 @@ public class ReportPortalRestAssuredLoggingFilterTest {
 		FilterableRequestSpecification requestSpecification = mockBasicRequest(HTML_TYPE);
 		Response responseObject = mockBasicResponse(HTML_TYPE);
 
-		ArgumentCaptor<String> logCapture = runFilter(requestSpecification, responseObject);
+		List<String> logs = runFilterTextMessageCapture(requestSpecification, responseObject);
 
-		List<String> logs = logCapture.getAllValues();
 		assertThat(logs, hasSize(2)); // Request + Response
 
 		assertThat(logs.get(0), equalTo(EMPTY_REQUEST));
@@ -155,9 +207,7 @@ public class ReportPortalRestAssuredLoggingFilterTest {
 		when(responseObject.getBody()).thenReturn(responseBodyObject);
 		when(responseBodyObject.asString()).thenReturn((String) responseBody);
 
-		ArgumentCaptor<String> logCapture = runFilter(requestSpecification, responseObject);
-
-		List<String> logs = logCapture.getAllValues();
+		List<String> logs = runFilterTextMessageCapture(requestSpecification, responseObject);
 		assertThat(logs, hasSize(2)); // Request + Response
 
 		String expectedRequest = EMPTY_REQUEST + "\n\n**Body**\n```\n" + prettier.apply((String) requestBody) + "\n```";
@@ -177,9 +227,7 @@ public class ReportPortalRestAssuredLoggingFilterTest {
 		Response responseObject = mockBasicResponse(HTML_TYPE);
 		when(responseObject.getHeaders()).thenReturn(headers);
 
-		ArgumentCaptor<String> logCapture = runFilter(requestSpecification, responseObject);
-
-		List<String> logs = logCapture.getAllValues();
+		List<String> logs = runFilterTextMessageCapture(requestSpecification, responseObject);
 		assertThat(logs, hasSize(2)); // Request + Response
 
 		String headerString = "\n\n**Headers**\n" + HTTP_HEADER + ": " + HTTP_HEADER_VALUE;
@@ -202,14 +250,233 @@ public class ReportPortalRestAssuredLoggingFilterTest {
 		Response responseObject = mockBasicResponse(HTML_TYPE);
 		when(responseObject.getDetailedCookies()).thenReturn(cookies);
 
-		ArgumentCaptor<String> logCapture = runFilter(requestSpecification, responseObject);
-
-		List<String> logs = logCapture.getAllValues();
+		List<String> logs = runFilterTextMessageCapture(requestSpecification, responseObject);
 		assertThat(logs, hasSize(2)); // Request + Response
 
 		String headerString = "\n\n**Cookies**\n" + cookie.toString();
 
 		assertThat(logs.get(0), equalTo(EMPTY_REQUEST + headerString));
 		assertThat(logs.get(1), equalTo(EMPTY_RESPONSE + headerString));
+	}
+
+	@Test
+	@SuppressWarnings("rawtypes")
+	public void test_rest_assured_logger_null_image_body() {
+		String mimeType = ContentType.IMAGE_JPEG.getMimeType();
+		FilterableRequestSpecification requestSpecification = mockBasicRequest(mimeType);
+		when(requestSpecification.getBody()).thenReturn(null);
+
+		Response responseObject = mockBasicResponse(mimeType);
+		ResponseBody responseBodyObject = mock(ResponseBody.class);
+		when(responseObject.getBody()).thenReturn(responseBodyObject);
+		when(responseBodyObject.asByteArray()).thenReturn(null);
+
+		List<String> logs = runFilterTextMessageCapture(requestSpecification, responseObject);
+		assertThat(logs, hasSize(2)); // Request + Response
+		assertThat(logs.get(0), equalTo(EMPTY_REQUEST));
+		assertThat(logs.get(1), equalTo(EMPTY_RESPONSE));
+	}
+
+	@SuppressWarnings("SameParameterValue")
+	private byte[] getResource(String imagePath) {
+		return ofNullable(this.getClass().getClassLoader().getResourceAsStream(imagePath)).map(is -> {
+			try {
+				return Utils.readInputStreamToBytes(is);
+			} catch (IOException e) {
+				return null;
+			}
+		}).orElse(null);
+	}
+
+	private static final String IMAGE_TYPE = "image/jpeg";
+	private static final String WILDCARD_TYPE = "*/*";
+
+	@ParameterizedTest
+	@ValueSource(strings = { IMAGE_TYPE, WILDCARD_TYPE })
+	@SuppressWarnings("rawtypes")
+	public void test_rest_assured_logger_image_body(String mimeType) throws IOException {
+		FilterableRequestSpecification requestSpecification = mockBasicRequest(mimeType);
+		byte[] image = getResource(IMAGE);
+		when(requestSpecification.getBody()).thenReturn(image);
+
+		Response responseObject = mockBasicResponse(mimeType);
+		ResponseBody responseBodyObject = mock(ResponseBody.class);
+		when(responseObject.getBody()).thenReturn(responseBodyObject);
+		when(responseBodyObject.asByteArray()).thenReturn(image);
+
+		List<ReportPortalMessage> logs = runFilterBinaryMessageCapture(requestSpecification, responseObject);
+		assertThat(logs, hasSize(2)); // Request + Response
+		assertThat(logs.get(0).getMessage(), equalTo(EMPTY_REQUEST));
+		assertThat(logs.get(1).getMessage(), equalTo(EMPTY_RESPONSE));
+
+		assertThat(logs.get(0).getData().getMediaType(), equalTo(mimeType));
+		assertThat(logs.get(1).getData().getMediaType(), equalTo(mimeType));
+
+		assertThat(logs.get(0).getData().read(), equalTo(image));
+		assertThat(logs.get(1).getData().read(), equalTo(image));
+	}
+
+	@Test
+	public void test_rest_assured_logger_null_response() {
+		String mimeType = ContentType.IMAGE_JPEG.getMimeType();
+		FilterableRequestSpecification requestSpecification = mockBasicRequest(mimeType);
+		when(requestSpecification.getBody()).thenReturn(null);
+
+		List<String> logs = runFilterTextMessageCapture(requestSpecification, null);
+		assertThat(logs, hasSize(2)); // Request + Response
+		assertThat(logs.get(0), equalTo(EMPTY_REQUEST));
+		assertThat(logs.get(1), equalTo(ReportPortalRestAssuredLoggingFilter.NULL_RESPONSE));
+	}
+
+	public static Iterable<Object> emptyMultipartData() {
+		return Arrays.asList(null, Collections.emptyList());
+	}
+
+	@ParameterizedTest
+	@MethodSource("emptyMultipartData")
+	public void test_rest_assured_logger_empty_multipart(List<MultiPartSpecification> data) {
+		String mimeType = ContentType.MULTIPART_FORM_DATA.getMimeType();
+		FilterableRequestSpecification requestSpecification = mockBasicRequest(mimeType);
+		when(requestSpecification.getMultiPartParams()).thenReturn(data);
+
+		List<String> logs = runFilterTextMessageCapture(requestSpecification, null);
+		assertThat(logs, hasSize(2)); // Request + Response
+		assertThat(logs.get(0), equalTo(EMPTY_REQUEST));
+	}
+
+	@SuppressWarnings("SameParameterValue")
+	private MultiPartSpecification getBinaryPart(String mimeType, String filePath, boolean file) {
+		return new MultiPartSpecification() {
+			@Override
+			public Object getContent() {
+				return file ?
+						new File(System.getProperty("user.dir") + System.getProperty("file.separator")
+								+ StringUtils.joinWith(System.getProperty("file.separator"), "src", "test", "resources", filePath)) :
+						getResource(filePath);
+			}
+
+			@Override
+			public String getControlName() {
+				return null;
+			}
+
+			@Override
+			public String getMimeType() {
+				return mimeType;
+			}
+
+			@Override
+			public Map<String, String> getHeaders() {
+				return null;
+			}
+
+			@Override
+			public String getCharset() {
+				return null;
+			}
+
+			@Override
+			public String getFileName() {
+				return null;
+			}
+
+			@Override
+			public boolean hasFileName() {
+				return false;
+			}
+		};
+	}
+
+	@ParameterizedTest
+	@ValueSource(booleans = { true, false })
+	public void test_rest_assured_logger_image_multipart(boolean isFile) throws IOException {
+		byte[] image = getResource(IMAGE);
+		String imageType = ContentType.IMAGE_JPEG.getMimeType();
+		MultiPartSpecification part = getBinaryPart(ContentType.IMAGE_JPEG.getMimeType(), IMAGE, isFile);
+		String mimeType = ContentType.MULTIPART_FORM_DATA.getMimeType();
+		FilterableRequestSpecification requestSpecification = mockBasicRequest(mimeType);
+		when(requestSpecification.getMultiPartParams()).thenReturn(Collections.singletonList(part));
+
+		Triple<List<String>, List<String>, List<ReportPortalMessage>> logs = runFilterComplexMessageCapture(requestSpecification, null);
+		assertThat(logs.getLeft(), hasSize(1));
+		assertThat(logs.getMiddle(), hasSize(1));
+		assertThat(logs.getRight(), hasSize(1));
+
+		assertThat(logs.getLeft().get(0), equalTo(EMPTY_REQUEST));
+		assertThat(logs.getMiddle().get(0), equalTo(ReportPortalRestAssuredLoggingFilter.NULL_RESPONSE));
+		assertThat(logs.getRight().get(0).getMessage(), equalTo(ReportPortalRestAssuredLoggingFilter.BODY_PART_TAG + "\n" + imageType));
+		assertThat(logs.getRight().get(0).getData().getMediaType(), equalTo(imageType));
+		assertThat(logs.getRight().get(0).getData().read(), equalTo(image));
+	}
+
+	@SuppressWarnings("SameParameterValue")
+	private MultiPartSpecification getTextPart(String mimeType, String text) {
+		return new MultiPartSpecification() {
+			@Override
+			public Object getContent() {
+				return text;
+			}
+
+			@Override
+			public String getControlName() {
+				return null;
+			}
+
+			@Override
+			public String getMimeType() {
+				return mimeType;
+			}
+
+			@Override
+			public Map<String, String> getHeaders() {
+				return Collections.singletonMap(HttpHeaders.CONTENT_TYPE, mimeType);
+			}
+
+			@Override
+			public String getCharset() {
+				return null;
+			}
+
+			@Override
+			public String getFileName() {
+				return null;
+			}
+
+			@Override
+			public boolean hasFileName() {
+				return false;
+			}
+		};
+	}
+
+	@Test
+	public void test_rest_assured_logger_text_and_image_multipart() throws IOException {
+		byte[] image = getResource(IMAGE);
+		String imageType = ContentType.IMAGE_JPEG.getMimeType();
+		String textType = ContentType.TEXT_PLAIN.getMimeType();
+		String mimeType = ContentType.MULTIPART_FORM_DATA.getMimeType();
+
+		String message = "test_message";
+		FilterableRequestSpecification requestSpecification = mockBasicRequest(mimeType);
+		when(requestSpecification.getMultiPartParams()).thenReturn(Arrays.asList(getTextPart(textType, message),
+				getBinaryPart(ContentType.IMAGE_JPEG.getMimeType(), IMAGE, false)
+		));
+
+		Triple<List<String>, List<String>, List<ReportPortalMessage>> logs = runFilterComplexMessageCapture(requestSpecification, null);
+		assertThat(logs.getLeft(), hasSize(1));
+		assertThat(logs.getMiddle(), hasSize(2));
+		assertThat(logs.getRight(), hasSize(1));
+
+		assertThat(logs.getLeft().get(0), equalTo(EMPTY_REQUEST));
+
+		assertThat(logs.getMiddle().get(0),
+				equalTo(ReportPortalRestAssuredLoggingFilter.HEADERS_TAG + "\n" + HttpHeaders.CONTENT_TYPE + ": " + textType + "\n\n"
+						+ ReportPortalRestAssuredLoggingFilter.BODY_PART_TAG + "\n```\n" + message + "\n```")
+		);
+		assertThat(logs.getMiddle().get(1), equalTo(ReportPortalRestAssuredLoggingFilter.NULL_RESPONSE));
+
+		assertThat(logs.getRight().get(0).getMessage(), equalTo(ReportPortalRestAssuredLoggingFilter.BODY_PART_TAG + "\n" + imageType));
+		assertThat(logs.getRight().get(0).getData().getMediaType(), equalTo(imageType));
+		assertThat(logs.getRight().get(0).getData().read(), equalTo(image));
 	}
 }

@@ -68,4 +68,10 @@ wrapper {
     gradleVersion = '5.4.1'
 }
 
+release {
+    git {
+        requireBranch = 'main'
+    }
+}
+
 build.dependsOn jacocoTestReport

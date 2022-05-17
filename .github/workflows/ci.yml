@@ -17,7 +17,7 @@ on:
   push:
     branches:
     - '*'
-    - '!master'
+    - '!main'
     paths-ignore:
     - README.md
     - README_TEMPLATE.md
@@ -25,7 +25,7 @@ on:
 
   pull_request:
     branches:
-    - master
+    - main
 
 jobs:
   build:

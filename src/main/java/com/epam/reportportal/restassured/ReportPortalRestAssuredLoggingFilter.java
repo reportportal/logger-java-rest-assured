@@ -77,6 +77,13 @@ public class ReportPortalRestAssuredLoggingFilter implements OrderedFilter {
 		put("text/json", Prettiers.JSON_PRETTIER);
 		put(ContentType.TEXT_HTML.getMimeType(), Prettiers.HTML_PRETTIER);
 	}};
+	public static final String NULL_RESPONSE = "NULL response from RestAssured";
+	public static final String BODY_TAG = "**Body**";
+	public static final String BODY_PART_TAG = "**Body part**";
+	public static final String HEADERS_TAG = "**Headers**";
+	public static final String COOKIES_TAG = "**Cookies**";
+	public static final String REQUEST_TAG = "**>>> REQUEST**";
+	public static final String RESPONSE_TAG = "**<<< RESPONSE**";
 
 	private final int order;
 	private final String logLevel;
@@ -139,21 +146,22 @@ public class ReportPortalRestAssuredLoggingFilter implements OrderedFilter {
 		StringBuilder result = new StringBuilder();
 		String headersString = convertHeaders(headers);
 		if (!headersString.isEmpty()) {
-			result.append("\n\n**Headers**\n").append(headersString);
+			result.append(HEADERS_TAG).append("\n").append(headersString);
 		}
 		String cookiesString = convertCookies(cookies);
 		if (!cookiesString.isEmpty()) {
-			result.append("\n\n**Cookies**\n").append(cookiesString);
+			result.append(COOKIES_TAG).append("\n").append(cookiesString);
 		}
 		return result.toString();
 	}
 
-	private String formatTextEntity(@Nullable Headers headers, @Nullable Cookies cookies, @Nullable String body,
+	private String formatTextEntity(@Nonnull String entityName, @Nullable Headers headers, @Nullable Cookies cookies, @Nullable String body,
 			@Nonnull String contentType) {
-		String result = formatTextHeader(headers, cookies);
-		return ofNullable(body).map(b -> result + "\n\n**Body**\n```\n" + (contentPrettiers.containsKey(contentType) ?
+		String prefix = formatTextHeader(headers, cookies);
+		String indent = prefix.isEmpty() ? entityName : "\n\n" + entityName;
+		return ofNullable(body).map(b -> prefix + indent + "\n```\n" + (contentPrettiers.containsKey(contentType) ?
 				contentPrettiers.get(contentType).apply(body) :
-				body) + "\n```").orElse(result);
+				body) + "\n```").orElse(prefix);
 	}
 
 	private void attachAsBinary(@Nullable String message, @Nullable byte[] attachment, @Nonnull String contentType) {
@@ -166,47 +174,56 @@ public class ReportPortalRestAssuredLoggingFilter implements OrderedFilter {
 
 	private void logMultiPartRequest(FilterableRequestSpecification request) {
 		Date currentDate = new Date();
-		ReportPortal.emitLog(formatTextHeader(request.getHeaders(), request.getCookies()), logLevel, currentDate);
+		String headers = formatTextHeader(request.getHeaders(), request.getCookies());
+		if (!headers.isEmpty()) {
+			ReportPortal.emitLog(formatTextHeader(request.getHeaders(), request.getCookies()), logLevel, currentDate);
+		}
 		request.getMultiPartParams().forEach(it -> {
 			Date myDate = new Date(currentDate.getTime() + 1);
 			String partMimeType = it.getMimeType();
 			if (TEXT_TYPES.contains(partMimeType)) {
 				String body = it.getContent().toString();
-				ReportPortal.emitLog("**Body part**\n" + (contentPrettiers.containsKey(partMimeType) ?
-						contentPrettiers.get(partMimeType).apply(body) :
-						body), logLevel, myDate);
+				Headers partHeaders = new Headers(ofNullable(it.getHeaders()).map(headerMap -> headerMap.entrySet()
+						.stream()
+						.map(h -> new Header(h.getKey(), h.getValue()))
+						.collect(Collectors.toList())).orElse(null));
+				ReportPortal.emitLog(formatTextEntity(
+						BODY_PART_TAG,
+						partHeaders,
+						null,
+						it.getContent().toString(),
+						body
+				), logLevel, myDate);
 			} else {
 				Object body = it.getContent();
 				if (body != null) {
 					if (body instanceof File) {
 						try {
 							TypeAwareByteSource file = Utils.getFile((File) body);
-							attachAsBinary("**Body part**\n" + file.getMediaType(), file.read(), file.getMediaType());
+							attachAsBinary(BODY_PART_TAG + "\n" + file.getMediaType(), file.read(), file.getMediaType());
 						} catch (IOException exc) {
-							ReportPortal.emitLog("**Body part**\nUnable to read file: " + exc.getMessage(), "ERROR", currentDate);
+							ReportPortal.emitLog(BODY_PART_TAG + "\nUnable to read file: " + exc.getMessage(), "ERROR", currentDate);
 						}
 					} else {
-						attachAsBinary("**Body part**\n" + partMimeType, (byte[]) body, partMimeType);
+						attachAsBinary(BODY_PART_TAG + "\n" + partMimeType, (byte[]) body, partMimeType);
 					}
 				} else {
-					ReportPortal.emitLog("**Body part**\nNULL", logLevel, currentDate);
+					ReportPortal.emitLog(BODY_PART_TAG + "\nNULL", logLevel, currentDate);
 				}
 			}
 		});
 	}
 
 	private void emitLog(FilterableRequestSpecification request) {
-		String logText = String.format("**>>> REQUEST**" + "\n%s to %s", request.getMethod(), request.getURI());
+		String logText = String.format(REQUEST_TAG + "\n%s to %s", request.getMethod(), request.getURI());
 		String rqContent = ContentType.parse(request.getContentType()).getMimeType();
 
 		if (textContentTypes.contains(rqContent)) {
-			ReportPortal.emitLog(
-					logText + formatTextEntity(request.getHeaders(), request.getCookies(), request.getBody(), rqContent),
-					logLevel,
-					new Date()
-			);
+			String body = formatTextEntity(BODY_TAG, request.getHeaders(), request.getCookies(), request.getBody(), rqContent);
+			String entry = logText.isEmpty() || body.isEmpty() ? logText + body : logText + "\n\n" + body;
+			ReportPortal.emitLog(entry, logLevel, new Date());
 		} else if (multipartContentTypes.contains(rqContent)) {
-			if (request.getMultiPartParams().isEmpty()) {
+			if (!ofNullable(request.getMultiPartParams()).filter(p -> !p.isEmpty()).isPresent()) {
 				ReportPortal.emitLog(logText + formatTextHeader(request.getHeaders(), request.getCookies()), logLevel, new Date());
 				return;
 			}
@@ -222,20 +239,22 @@ public class ReportPortalRestAssuredLoggingFilter implements OrderedFilter {
 
 	private void emitLog(Response response) {
 		if (response == null) {
-			ReportPortal.emitLog("NULL response from RestAssured", logLevel, new Date());
+			ReportPortal.emitLog(NULL_RESPONSE, logLevel, new Date());
 			return;
 		}
 
-		String logText = "**<<< RESPONSE**\n" + response.getStatusLine();
+		String logText = RESPONSE_TAG + "\n" + response.getStatusLine();
 		String mimeType = ContentType.parse(response.getContentType()).getMimeType();
 		if (TEXT_TYPES.contains(mimeType)) {
-			logText += formatTextEntity(
+			String body = formatTextEntity(
+					BODY_TAG,
 					response.getHeaders(),
 					response.getDetailedCookies(),
 					ofNullable(response.getBody()).map(ResponseBodyData::asString).orElse(null),
 					mimeType
 			);
-			ReportPortal.emitLog(logText, logLevel, new Date());
+			String entry = body.isEmpty() ? logText : logText + "\n\n" + body;
+			ReportPortal.emitLog(entry, logLevel, new Date());
 		} else {
 			attachAsBinary(logText, response.getBody().asByteArray(), mimeType);
 		}

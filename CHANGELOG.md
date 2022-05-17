@@ -1,6 +1,8 @@
 # Changelog
 
 ## [Unreleased]
+
+## [5.0.1]
 ### Added
 - URL converter function, by @HardNorth
 

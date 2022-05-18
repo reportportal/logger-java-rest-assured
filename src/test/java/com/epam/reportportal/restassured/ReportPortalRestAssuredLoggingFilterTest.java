@@ -35,7 +35,6 @@ import io.restassured.specification.FilterableRequestSpecification;
 import io.restassured.specification.FilterableResponseSpecification;
 import io.restassured.specification.MultiPartSpecification;
 import io.restassured.specification.RequestSender;
-import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Triple;
 import org.apache.http.HttpHeaders;
 import org.apache.http.entity.ContentType;
@@ -350,8 +349,8 @@ public class ReportPortalRestAssuredLoggingFilterTest {
 			@Override
 			public Object getContent() {
 				return file ?
-						new File(System.getProperty("user.dir") + System.getProperty("file.separator")
-								+ StringUtils.joinWith(System.getProperty("file.separator"), "src", "test", "resources", filePath)) :
+						new File(System.getProperty("user.dir") + System.getProperty("file.separator") + String.join(System.getProperty(
+								"file.separator"), "src", "test", "resources", filePath)) :
 						getResource(filePath);
 			}
 

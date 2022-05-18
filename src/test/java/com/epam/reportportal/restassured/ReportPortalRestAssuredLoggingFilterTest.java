@@ -183,8 +183,8 @@ public class ReportPortalRestAssuredLoggingFilterTest {
 
 	@Test
 	public void test_rest_assured_logger_null_values() {
-		FilterableRequestSpecification requestSpecification = mockBasicRequest(HTML_TYPE);
-		Response responseObject = mockBasicResponse(HTML_TYPE);
+		FilterableRequestSpecification requestSpecification = mockBasicRequest(null);
+		Response responseObject = mockBasicResponse(null);
 
 		List<String> logs = runFilterTextMessageCapture(requestSpecification, responseObject);
 

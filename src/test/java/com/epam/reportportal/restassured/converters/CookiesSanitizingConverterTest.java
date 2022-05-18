@@ -16,17 +16,21 @@
 
 package com.epam.reportportal.restassured.converters;
 
-import io.restassured.http.Header;
-import org.apache.http.HttpHeaders;
+import io.restassured.http.Cookie;
 import org.junit.jupiter.api.Test;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 
-public class AuthorizationHeaderSanitizingConverterTest {
+public class CookiesSanitizingConverterTest {
 	@Test
-	public void testAuthorizationHeaderRemove() {
-		String result = new AuthorizationHeaderSanitizingConverter().apply(new Header(HttpHeaders.AUTHORIZATION, "Bearer test_token"));
-		assertThat(result, equalTo(HttpHeaders.AUTHORIZATION + ": " + AuthorizationHeaderSanitizingConverter.REMOVED_TAG));
+	public void testSessionIdHeaderRemove() {
+		Cookie cookie = new Cookie.Builder("session_id", "my_test_session_id").setComment("test comment")
+				.setDomain("example.com")
+				.setHttpOnly(true)
+				.setPath("/")
+				.build();
+		String result = new CookiesSanitizingConverter().apply(cookie);
+		assertThat(result, equalTo(cookie.getName() + "=" + CookiesSanitizingConverter.REMOVED_TAG));
 	}
 }

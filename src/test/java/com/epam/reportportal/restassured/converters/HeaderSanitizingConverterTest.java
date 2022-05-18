@@ -16,23 +16,17 @@
 
 package com.epam.reportportal.restassured.converters;
 
-import com.epam.reportportal.restassured.ReportPortalRestAssuredLoggingFilter;
 import io.restassured.http.Header;
 import org.apache.http.HttpHeaders;
+import org.junit.jupiter.api.Test;
 
-import java.util.function.Function;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.equalTo;
 
-/**
- * Header converter for {@link ReportPortalRestAssuredLoggingFilter}. Removes any data in HTTP Authorization header.
- */
-public class AuthorizationHeaderSanitizingConverter implements Function<Header, String> {
-
-	public static final String REMOVED_TAG = "&lt;removed&gt;";
-
-	@Override
-	public String apply(Header header) {
-		return HttpHeaders.AUTHORIZATION.equals(header.getName()) ?
-				header.getName() + ": " + REMOVED_TAG :
-				header.getName() + ": " + header.getValue();
+public class HeaderSanitizingConverterTest {
+	@Test
+	public void testAuthorizationHeaderRemove() {
+		String result = new HeaderSanitizingConverter().apply(new Header(HttpHeaders.AUTHORIZATION, "Bearer test_token"));
+		assertThat(result, equalTo(HttpHeaders.AUTHORIZATION + ": " + HeaderSanitizingConverter.REMOVED_TAG));
 	}
 }

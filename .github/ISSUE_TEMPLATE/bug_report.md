@@ -22,7 +22,7 @@ A clear and concise description of what you expected to happen.
 What actually happened.
 
 **Dependency versions**
-Include version info of the following packages: client-java, logger-java-rest-assured
+Include version info of the following libraries: client-java, logger-java-rest-assured
 
 **Additional context**
 Add any other context about the problem here.

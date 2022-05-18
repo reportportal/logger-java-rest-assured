@@ -1,6 +1,8 @@
 # Changelog
 
 ## [Unreleased]
+### Added
+- Example converters, by @HardNorth
 
 ## [5.1.0]
 ### Added

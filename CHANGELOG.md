@@ -1,6 +1,8 @@
 # Changelog
 
 ## [Unreleased]
+
+## [5.1.0]
 ### Added
 - Chain accessors for setters, by @HardNorth
 ### Fixed

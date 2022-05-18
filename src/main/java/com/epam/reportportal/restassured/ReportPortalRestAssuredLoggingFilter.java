@@ -49,6 +49,18 @@ import java.util.stream.StreamSupport;
 
 import static java.util.Optional.ofNullable;
 
+/**
+ * REST Assured Request/Response logging filter for Report Portal.
+ *
+ * The filter intercept and all Requests and Responses into Report Portal in Markdown format, including multipart requests. It recognizes
+ * payload types and attach them in corresponding manner: image types will be logged as images with thumbnails, binary types will be logged
+ * as entry attachments, text types will be formatted and logged in Markdown code blocks.
+ *
+ * Basic usage:
+ * <pre>
+ *
+ * </pre>
+ */
 public class ReportPortalRestAssuredLoggingFilter implements OrderedFilter {
 
 	private static final Set<String> MULTIPART_TYPES = Collections.singleton(ContentType.MULTIPART_FORM_DATA.getMimeType());
@@ -189,7 +201,7 @@ public class ReportPortalRestAssuredLoggingFilter implements OrderedFilter {
 		}
 		request.getMultiPartParams().forEach(it -> {
 			Date myDate = new Date(currentDate.getTime() + 1);
-			String partMimeType = it.getMimeType();
+			String partMimeType = ofNullable(it.getMimeType()).orElse(ContentType.APPLICATION_OCTET_STREAM.getMimeType());
 			if (TEXT_TYPES.contains(partMimeType)) {
 				String body = it.getContent().toString();
 				Headers partHeaders = new Headers(ofNullable(it.getHeaders()).map(headerMap -> headerMap.entrySet()
@@ -224,7 +236,8 @@ public class ReportPortalRestAssuredLoggingFilter implements OrderedFilter {
 		String requestString = ofNullable(uriConverter).map(u -> String.format("%s to %s", request.getMethod(), u.apply(request.getURI())))
 				.orElse(request.getMethod());
 		String logText = REQUEST_TAG + "\n" + requestString;
-		String rqContent = ContentType.parse(request.getContentType()).getMimeType();
+		String rqContent = ofNullable(request.getContentType()).map(ct -> ContentType.parse(ct).getMimeType())
+				.orElse(ContentType.APPLICATION_OCTET_STREAM.getMimeType());
 
 		if (textContentTypes.contains(rqContent)) {
 			String body = formatTextEntity(BODY_TAG, request.getHeaders(), request.getCookies(), request.getBody(), rqContent);
@@ -252,7 +265,8 @@ public class ReportPortalRestAssuredLoggingFilter implements OrderedFilter {
 		}
 
 		String logText = RESPONSE_TAG + "\n" + response.getStatusLine();
-		String mimeType = ContentType.parse(response.getContentType()).getMimeType();
+		String mimeType = ofNullable(response.getContentType()).map(ct -> ContentType.parse(ct).getMimeType())
+				.orElse(ContentType.APPLICATION_OCTET_STREAM.getMimeType());
 		if (TEXT_TYPES.contains(mimeType)) {
 			String body = formatTextEntity(BODY_TAG,
 					response.getHeaders(),
@@ -263,7 +277,7 @@ public class ReportPortalRestAssuredLoggingFilter implements OrderedFilter {
 			String entry = body.isEmpty() ? logText : logText + "\n\n" + body;
 			ReportPortal.emitLog(entry, logLevel, new Date());
 		} else {
-			attachAsBinary(logText, response.getBody().asByteArray(), mimeType);
+			attachAsBinary(logText, ofNullable(response.getBody()).map(ResponseBodyData::asByteArray).orElse(null), mimeType);
 		}
 	}
 
@@ -275,15 +289,18 @@ public class ReportPortalRestAssuredLoggingFilter implements OrderedFilter {
 		return response;
 	}
 
-	public void setTextContentTypes(Set<String> textContentTypes) {
+	public ReportPortalRestAssuredLoggingFilter setTextContentTypes(Set<String> textContentTypes) {
 		this.textContentTypes = textContentTypes;
+		return this;
 	}
 
-	public void setMultipartContentTypes(Set<String> multipartContentTypes) {
+	public ReportPortalRestAssuredLoggingFilter setMultipartContentTypes(Set<String> multipartContentTypes) {
 		this.multipartContentTypes = multipartContentTypes;
+		return this;
 	}
 
-	public void setContentPrettiers(Map<String, Function<String, String>> contentPrettiers) {
+	public ReportPortalRestAssuredLoggingFilter setContentPrettiers(Map<String, Function<String, String>> contentPrettiers) {
 		this.contentPrettiers = contentPrettiers;
+		return this;
 	}
 }

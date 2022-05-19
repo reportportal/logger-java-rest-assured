@@ -48,6 +48,9 @@ import java.util.function.Function;
 
 import static java.util.Optional.ofNullable;
 
+/**
+ * Static converters class, contains all basic converters used by the logger.
+ */
 public class Converters {
 
 	private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();

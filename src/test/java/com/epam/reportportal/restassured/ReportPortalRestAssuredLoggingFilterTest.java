@@ -218,12 +218,17 @@ public class ReportPortalRestAssuredLoggingFilterTest {
 		assertThat(response, equalTo(expectedResponse));
 	}
 
-	@Test
-	public void test_rest_assured_logger_headers() {
+	public static Iterable<Object[]> testTypes() {
+		return Arrays.asList(new Object[] { HTML_TYPE }, new Object[] { null });
+	}
+
+	@ParameterizedTest
+	@MethodSource("testTypes")
+	public void test_rest_assured_logger_headers(String contentType) {
 		Headers headers = new Headers(new Header(HTTP_HEADER, HTTP_HEADER_VALUE));
-		FilterableRequestSpecification requestSpecification = mockBasicRequest(HTML_TYPE);
+		FilterableRequestSpecification requestSpecification = mockBasicRequest(contentType);
 		when(requestSpecification.getHeaders()).thenReturn(headers);
-		Response responseObject = mockBasicResponse(HTML_TYPE);
+		Response responseObject = mockBasicResponse(contentType);
 		when(responseObject.getHeaders()).thenReturn(headers);
 
 		List<String> logs = runFilterTextMessageCapture(requestSpecification, responseObject);

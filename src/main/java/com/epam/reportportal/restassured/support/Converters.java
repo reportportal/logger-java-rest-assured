@@ -105,11 +105,11 @@ public class Converters {
 
 	public static final Function<Cookie, String> COOKIE_SANITIZING_CONVERTER = cookie -> SESSION_COOKIES.contains(cookie.getName()) ?
 			cookie.getName() + "=" + REMOVED_TAG :
-			cookie.toString();
+			DEFAULT_COOKIE_CONVERTER.apply(cookie);
 
 	public static final Function<Header, String> HEADER_SANITIZING_CONVERTER = header -> HttpHeaders.AUTHORIZATION.equals(header.getName()) ?
 			header.getName() + ": " + REMOVED_TAG :
-			header.getName() + ": " + header.getValue();
+			DEFAULT_HEADER_CONVERTER.apply(header);
 
 	public static final Function<String, String> URI_SANITIZING_CONVERTER = uriStr -> {
 		try {

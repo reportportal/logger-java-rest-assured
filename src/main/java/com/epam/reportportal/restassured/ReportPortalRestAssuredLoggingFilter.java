@@ -168,9 +168,9 @@ public class ReportPortalRestAssuredLoggingFilter implements OrderedFilter {
 	/**
 	 * Create an ordered REST Assured filter with the specific log level and header converter.
 	 *
-	 * @param filterOrder           if you have different filters which modify requests on fly this parameter allows you to control the
-	 *                              order when Report Portal logger will be called, and therefore log or don't log some data.
-	 * @param defaultLogLevel       log leve on which REST Assured requests/responses will appear on Report Portal
+	 * @param filterOrder     if you have different filters which modify requests on fly this parameter allows you to control the
+	 *                        order when Report Portal logger will be called, and therefore log or don't log some data.
+	 * @param defaultLogLevel log leve on which REST Assured requests/responses will appear on Report Portal
 	 */
 	public ReportPortalRestAssuredLoggingFilter(int filterOrder, @Nonnull LogLevel defaultLogLevel) {
 		this(filterOrder, defaultLogLevel, DEFAULT_HEADER_CONVERTER, DEFAULT_COOKIE_CONVERTER);
@@ -283,7 +283,7 @@ public class ReportPortalRestAssuredLoggingFilter implements OrderedFilter {
 
 		if (textContentTypes.contains(rqContent)) {
 			String body = formatTextEntity(BODY_TAG, request.getHeaders(), request.getCookies(), request.getBody(), rqContent);
-			String entry = body.isEmpty() ? logText + body : logText + "\n\n" + body;
+			String entry = body.isEmpty() ? logText : logText + "\n\n" + body;
 			ReportPortal.emitLog(entry, logLevel, new Date());
 		} else if (multipartContentTypes.contains(rqContent)) {
 			if (!ofNullable(request.getMultiPartParams()).filter(p -> !p.isEmpty()).isPresent()) {
@@ -296,7 +296,9 @@ public class ReportPortalRestAssuredLoggingFilter implements OrderedFilter {
 			logMultiPartRequest(request);
 			sr.ifPresent(StepReporter::finishPreviousStep);
 		} else {
-			attachAsBinary(logText, request.getBody(), rqContent);
+			String prefix = formatTextHeader(request.getHeaders(), request.getCookies());
+			String entry = prefix.isEmpty() ? logText : logText + "\n\n" + prefix;
+			attachAsBinary(entry, request.getBody(), rqContent);
 		}
 	}
 
@@ -319,7 +321,9 @@ public class ReportPortalRestAssuredLoggingFilter implements OrderedFilter {
 			String entry = body.isEmpty() ? logText : logText + "\n\n" + body;
 			ReportPortal.emitLog(entry, logLevel, new Date());
 		} else {
-			attachAsBinary(logText, ofNullable(response.getBody()).map(ResponseBodyData::asByteArray).orElse(null), mimeType);
+			String prefix = formatTextHeader(response.getHeaders(), response.getDetailedCookies());
+			String entry = prefix.isEmpty() ? logText : logText + "\n\n" + prefix;
+			attachAsBinary(entry, ofNullable(response.getBody()).map(ResponseBodyData::asByteArray).orElse(null), mimeType);
 		}
 	}
 

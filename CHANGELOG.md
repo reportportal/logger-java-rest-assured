@@ -1,6 +1,8 @@
 # Changelog
 
 ## [Unreleased]
+### Fixed
+- Missed HTTP headers in case of GET requests, by @HardNorth
 
 ## [5.1.1]
 ### Added

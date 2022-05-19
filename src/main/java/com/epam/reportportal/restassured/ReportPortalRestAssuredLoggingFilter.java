@@ -16,11 +16,11 @@
 
 package com.epam.reportportal.restassured;
 
-import com.epam.reportportal.internal.support.Prettiers;
 import com.epam.reportportal.listeners.ItemStatus;
 import com.epam.reportportal.listeners.LogLevel;
 import com.epam.reportportal.message.ReportPortalMessage;
 import com.epam.reportportal.message.TypeAwareByteSource;
+import com.epam.reportportal.restassured.support.Converters;
 import com.epam.reportportal.service.Launch;
 import com.epam.reportportal.service.ReportPortal;
 import com.epam.reportportal.service.step.StepReporter;
@@ -73,22 +73,16 @@ public class ReportPortalRestAssuredLoggingFilter implements OrderedFilter {
 			ContentType.DEFAULT_TEXT.getMimeType()
 	));
 
-	private static final Function<Header, String> DEFAULT_HEADER_CONVERTER = h -> h.getName() + ": " + h.getValue();
-
-	private static final Function<Cookie, String> DEFAULT_COOKIE_CONVERTER = Cookie::toString;
-
-	private static final Function<String, String> DEFAULT_URI_CONVERTER = u -> u;
-
 	private static final Map<String, Function<String, String>> DEFAULT_PRETTIERS = new HashMap<String, Function<String, String>>() {{
-		put(ContentType.APPLICATION_XML.getMimeType(), Prettiers.XML_PRETTIER);
-		put(ContentType.APPLICATION_SOAP_XML.getMimeType(), Prettiers.XML_PRETTIER);
-		put(ContentType.APPLICATION_ATOM_XML.getMimeType(), Prettiers.XML_PRETTIER);
-		put(ContentType.APPLICATION_SVG_XML.getMimeType(), Prettiers.XML_PRETTIER);
-		put(ContentType.APPLICATION_XHTML_XML.getMimeType(), Prettiers.XML_PRETTIER);
-		put(ContentType.TEXT_XML.getMimeType(), Prettiers.XML_PRETTIER);
-		put(ContentType.APPLICATION_JSON.getMimeType(), Prettiers.JSON_PRETTIER);
-		put("text/json", Prettiers.JSON_PRETTIER);
-		put(ContentType.TEXT_HTML.getMimeType(), Prettiers.HTML_PRETTIER);
+		put(ContentType.APPLICATION_XML.getMimeType(), Converters.XML_PRETTIER);
+		put(ContentType.APPLICATION_SOAP_XML.getMimeType(), Converters.XML_PRETTIER);
+		put(ContentType.APPLICATION_ATOM_XML.getMimeType(), Converters.XML_PRETTIER);
+		put(ContentType.APPLICATION_SVG_XML.getMimeType(), Converters.XML_PRETTIER);
+		put(ContentType.APPLICATION_XHTML_XML.getMimeType(), Converters.XML_PRETTIER);
+		put(ContentType.TEXT_XML.getMimeType(), Converters.XML_PRETTIER);
+		put(ContentType.APPLICATION_JSON.getMimeType(), Converters.JSON_PRETTIER);
+		put("text/json", Converters.JSON_PRETTIER);
+		put(ContentType.TEXT_HTML.getMimeType(), Converters.HTML_PRETTIER);
 	}};
 	public static final String NULL_RESPONSE = "NULL response from RestAssured";
 	public static final String BODY_TAG = "**Body**";
@@ -147,7 +141,7 @@ public class ReportPortalRestAssuredLoggingFilter implements OrderedFilter {
 	 */
 	public ReportPortalRestAssuredLoggingFilter(int filterOrder, @Nonnull LogLevel defaultLogLevel,
 			@Nullable Function<Header, String> headerConvertFunction, @Nullable Function<Cookie, String> cookieConvertFunction) {
-		this(filterOrder, defaultLogLevel, headerConvertFunction, cookieConvertFunction, DEFAULT_URI_CONVERTER);
+		this(filterOrder, defaultLogLevel, headerConvertFunction, cookieConvertFunction, Converters.DEFAULT_URI_CONVERTER);
 	}
 
 	/**
@@ -162,7 +156,7 @@ public class ReportPortalRestAssuredLoggingFilter implements OrderedFilter {
 	 */
 	public ReportPortalRestAssuredLoggingFilter(int filterOrder, @Nonnull LogLevel defaultLogLevel,
 			@Nullable Function<Header, String> headerConvertFunction) {
-		this(filterOrder, defaultLogLevel, headerConvertFunction, DEFAULT_COOKIE_CONVERTER);
+		this(filterOrder, defaultLogLevel, headerConvertFunction, Converters.DEFAULT_COOKIE_CONVERTER);
 	}
 
 	/**
@@ -173,7 +167,7 @@ public class ReportPortalRestAssuredLoggingFilter implements OrderedFilter {
 	 * @param defaultLogLevel log leve on which REST Assured requests/responses will appear on Report Portal
 	 */
 	public ReportPortalRestAssuredLoggingFilter(int filterOrder, @Nonnull LogLevel defaultLogLevel) {
-		this(filterOrder, defaultLogLevel, DEFAULT_HEADER_CONVERTER, DEFAULT_COOKIE_CONVERTER);
+		this(filterOrder, defaultLogLevel, Converters.DEFAULT_HEADER_CONVERTER);
 	}
 
 	@Override
@@ -213,6 +207,9 @@ public class ReportPortalRestAssuredLoggingFilter implements OrderedFilter {
 		}
 		String cookiesString = convertCookies(cookies);
 		if (!cookiesString.isEmpty()) {
+			if (!headersString.isEmpty()) {
+				result.append("\n\n");
+			}
 			result.append(COOKIES_TAG).append("\n").append(cookiesString);
 		}
 		return result.toString();
@@ -244,31 +241,34 @@ public class ReportPortalRestAssuredLoggingFilter implements OrderedFilter {
 		request.getMultiPartParams().forEach(it -> {
 			Date myDate = new Date(currentDate.getTime() + 1);
 			String partMimeType = ofNullable(it.getMimeType()).orElse(ContentType.APPLICATION_OCTET_STREAM.getMimeType());
+			Headers partHeaders = ofNullable(it.getHeaders()).map(headerMap -> headerMap.entrySet()
+					.stream()
+					.map(h -> new Header(h.getKey(), h.getValue()))
+					.collect(Collectors.toList())).map(Headers::new).orElse(null);
 			if (TEXT_TYPES.contains(partMimeType)) {
 				String body = it.getContent().toString();
-				Headers partHeaders = new Headers(ofNullable(it.getHeaders()).map(headerMap -> headerMap.entrySet()
-						.stream()
-						.map(h -> new Header(h.getKey(), h.getValue()))
-						.collect(Collectors.toList())).orElse(null));
 				ReportPortal.emitLog(formatTextEntity(BODY_PART_TAG, partHeaders, null, it.getContent().toString(), body),
 						logLevel,
 						myDate
 				);
 			} else {
+				String prefix = formatTextHeader(partHeaders, null);
 				Object body = it.getContent();
+				String logText = BODY_PART_TAG + "\n";
+				String entry = prefix.isEmpty() ? logText : prefix + "\n\n" + logText;
 				if (body != null) {
 					if (body instanceof File) {
 						try {
 							TypeAwareByteSource file = Utils.getFile((File) body);
-							attachAsBinary(BODY_PART_TAG + "\n" + file.getMediaType(), file.read(), file.getMediaType());
+							attachAsBinary(entry + file.getMediaType(), file.read(), file.getMediaType());
 						} catch (IOException exc) {
-							ReportPortal.emitLog(BODY_PART_TAG + "\nUnable to read file: " + exc.getMessage(), "ERROR", currentDate);
+							ReportPortal.emitLog(entry + "Unable to read file: " + exc.getMessage(), "ERROR", currentDate);
 						}
 					} else {
-						attachAsBinary(BODY_PART_TAG + "\n" + partMimeType, (byte[]) body, partMimeType);
+						attachAsBinary(entry + partMimeType, (byte[]) body, partMimeType);
 					}
 				} else {
-					ReportPortal.emitLog(BODY_PART_TAG + "\nNULL", logLevel, currentDate);
+					ReportPortal.emitLog(entry + "NULL", logLevel, currentDate);
 				}
 			}
 		});

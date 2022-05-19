@@ -14,13 +14,16 @@
  * limitations under the License.
  */
 
-package com.epam.reportportal.internal.support;
+package com.epam.reportportal.restassured.support;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.restassured.http.Cookie;
+import io.restassured.http.Header;
+import org.apache.http.HttpHeaders;
 import org.jsoup.Jsoup;
-import org.w3c.dom.Document;
+import org.jsoup.nodes.Document;
 import org.xml.sax.InputSource;
 import org.xml.sax.SAXException;
 
@@ -36,15 +39,20 @@ import java.io.IOException;
 import java.io.StringReader;
 import java.io.StringWriter;
 import java.io.Writer;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.function.Function;
 
-import static org.jsoup.nodes.Document.OutputSettings;
+import static java.util.Optional.ofNullable;
 
-public class Prettiers {
+public class Converters {
 
 	private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
-	private static final OutputSettings OUTPUT_SETTINGS = new OutputSettings().indentAmount(2);
+	private static final Document.OutputSettings OUTPUT_SETTINGS = new Document.OutputSettings().indentAmount(2);
 
 	public static final Function<String, String> JSON_PRETTIER = json -> {
 		try {
@@ -58,7 +66,7 @@ public class Prettiers {
 	public static final Function<String, String> XML_PRETTIER = xml -> {
 		InputSource src = new InputSource(new StringReader(xml));
 		try {
-			Document document = DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(src);
+			org.w3c.dom.Document document = DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(src);
 
 			TransformerFactory transformerFactory = TransformerFactory.newInstance();
 			transformerFactory.setAttribute("indent-number", 2);
@@ -77,7 +85,52 @@ public class Prettiers {
 
 	public static final Function<String, String> HTML_PRETTIER = html -> Jsoup.parse(html).outputSettings(OUTPUT_SETTINGS).html().trim();
 
-	private Prettiers() {
+	public static final Function<Cookie, String> DEFAULT_COOKIE_CONVERTER = Cookie::toString;
+
+	public static final Function<Header, String> DEFAULT_HEADER_CONVERTER = h -> h.getName() + ": " + h.getValue().replace("*", "\\*");
+
+	public static final Function<String, String> DEFAULT_URI_CONVERTER = u -> u;
+
+	public static final String REMOVED_TAG = "&lt;removed&gt;";
+
+	public static final Set<String> SESSION_COOKIES = new HashSet<>(Arrays.asList("sid",
+			"session",
+			"session_id",
+			"sessionId",
+			"sessionid"
+	));
+
+	public static final Function<Cookie, String> COOKIE_SANITIZING_CONVERTER = cookie -> SESSION_COOKIES.contains(cookie.getName()) ?
+			cookie.getName() + "=" + REMOVED_TAG :
+			cookie.toString();
+
+	public static final Function<Header, String> HEADER_SANITIZING_CONVERTER = header -> HttpHeaders.AUTHORIZATION.equals(header.getName()) ?
+			header.getName() + ": " + REMOVED_TAG :
+			header.getName() + ": " + header.getValue();
+
+	public static final Function<String, String> URI_SANITIZING_CONVERTER = uriStr -> {
+		try {
+			URI uri = URI.create(uriStr);
+			String userInfo = ofNullable(uri.getUserInfo()).filter(info -> !info.isEmpty()).map(info -> info.split(":", 2)).map(info -> {
+				if (info.length > 1) {
+					return new String[] { info[0], REMOVED_TAG };
+				}
+				return info;
+			}).map(info -> String.join(":", info)).orElse(null);
+			return new URI(uri.getScheme(),
+					userInfo,
+					uri.getHost(),
+					uri.getPort(),
+					uri.getPath(),
+					uri.getQuery(),
+					uri.getFragment()
+			).toString();
+		} catch (URISyntaxException | IllegalArgumentException e) {
+			return uriStr;
+		}
+	};
+
+	private Converters() {
 		throw new IllegalStateException("Static only class");
 	}
 }

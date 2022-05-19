@@ -1,6 +1,10 @@
 # Changelog
 
 ## [Unreleased]
+### Fixed
+- Cookies indent when use with headers, by @HardNorth
+### Changed
+- All converters and prettiers moved into `com.epam.reportportal.restassured.support.Converters` class, by @HardNorth
 
 ## [5.1.2]
 ### Fixed

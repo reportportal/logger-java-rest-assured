@@ -16,10 +16,10 @@
 
 package com.epam.reportportal.restassured;
 
-import com.epam.reportportal.internal.support.Prettiers;
 import com.epam.reportportal.listeners.ItemStatus;
 import com.epam.reportportal.listeners.LogLevel;
 import com.epam.reportportal.message.ReportPortalMessage;
+import com.epam.reportportal.restassured.support.Converters;
 import com.epam.reportportal.service.Launch;
 import com.epam.reportportal.service.ReportPortal;
 import com.epam.reportportal.service.step.StepReporter;
@@ -106,9 +106,9 @@ public class ReportPortalRestAssuredLoggingFilterTest {
 
 	public static Iterable<Object[]> requestData() {
 		return Arrays.asList(new Object[] { JSON_TYPE, "{\"object\": {\"key\": \"value\"}}", "{\"object\": {\"key\": \"value\"}}",
-						Prettiers.JSON_PRETTIER, null, null },
+						Converters.JSON_PRETTIER, null, null },
 				new Object[] { "application/xml", "<test><key><value>value</value></key></test>",
-						"<test><key><value>value</value></key></test>", Prettiers.XML_PRETTIER, null, null }
+						"<test><key><value>value</value></key></test>", Converters.XML_PRETTIER, null, null }
 		);
 	}
 
@@ -258,6 +258,33 @@ public class ReportPortalRestAssuredLoggingFilterTest {
 		assertThat(logs, hasSize(2)); // Request + Response
 
 		String headerString = "\n\n**Cookies**\n" + cookie.toString();
+
+		assertThat(logs.get(0), equalTo(EMPTY_REQUEST + headerString));
+		assertThat(logs.get(1), equalTo(EMPTY_RESPONSE + headerString));
+	}
+
+	@ParameterizedTest
+	@MethodSource("testTypes")
+	public void test_rest_assured_logger_headers_and_cookies(String contentType) {
+		Cookie cookie = new Cookie.Builder("test").setComment("test comment")
+				.setDomain("example.com")
+				.setHttpOnly(false)
+				.setVersion(1)
+				.setExpiryDate(new Date())
+				.build();
+		Cookies cookies = new Cookies(cookie);
+		Headers headers = new Headers(new Header(HTTP_HEADER, HTTP_HEADER_VALUE));
+		FilterableRequestSpecification requestSpecification = mockBasicRequest(contentType);
+		when(requestSpecification.getHeaders()).thenReturn(headers);
+		when(requestSpecification.getCookies()).thenReturn(cookies);
+		Response responseObject = mockBasicResponse(contentType);
+		when(responseObject.getHeaders()).thenReturn(headers);
+		when(responseObject.getDetailedCookies()).thenReturn(cookies);
+
+		List<String> logs = runFilterTextMessageCapture(requestSpecification, responseObject);
+		assertThat(logs, hasSize(2)); // Request + Response
+
+		String headerString = "\n\n**Headers**\n" + HTTP_HEADER + ": " + HTTP_HEADER_VALUE + "\n\n**Cookies**\n" + cookie.toString();
 
 		assertThat(logs.get(0), equalTo(EMPTY_REQUEST + headerString));
 		assertThat(logs.get(1), equalTo(EMPTY_RESPONSE + headerString));
@@ -456,12 +483,12 @@ public class ReportPortalRestAssuredLoggingFilterTest {
 	@Test
 	public void test_rest_assured_logger_text_and_image_multipart() throws IOException {
 		byte[] image = getResource(IMAGE);
+		String requestType = ContentType.MULTIPART_FORM_DATA.getMimeType();
 		String imageType = ContentType.IMAGE_JPEG.getMimeType();
 		String textType = ContentType.TEXT_PLAIN.getMimeType();
-		String mimeType = ContentType.MULTIPART_FORM_DATA.getMimeType();
 
 		String message = "test_message";
-		FilterableRequestSpecification requestSpecification = mockBasicRequest(mimeType);
+		FilterableRequestSpecification requestSpecification = mockBasicRequest(requestType);
 		when(requestSpecification.getMultiPartParams()).thenReturn(Arrays.asList(getTextPart(textType, message),
 				getBinaryPart(ContentType.IMAGE_JPEG.getMimeType(), IMAGE, false)
 		));

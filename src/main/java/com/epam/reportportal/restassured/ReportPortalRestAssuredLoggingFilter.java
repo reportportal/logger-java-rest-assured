@@ -52,9 +52,9 @@ import static java.util.Optional.ofNullable;
 /**
  * REST Assured Request/Response logging filter for Report Portal.
  * <p>
- * The filter intercept and all Requests and Responses into Report Portal in Markdown format, including multipart requests. It recognizes
- * payload types and attach them in corresponding manner: image types will be logged as images with thumbnails, binary types will be logged
- * as entry attachments, text types will be formatted and logged in Markdown code blocks.
+ * The filter intercept and logs all Requests and Responses issued by REST Assured into Report Portal in Markdown format, including
+ * multipart requests. It recognizes payload types and attach them in corresponding manner: image types will be logged as images with
+ * thumbnails, binary types will be logged as entry attachments, text types will be formatted and logged in Markdown code blocks.
  * <p>
  * Basic usage:
  * <pre>

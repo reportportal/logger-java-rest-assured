@@ -7,4 +7,130 @@
 [![stackoverflow](https://img.shields.io/badge/reportportal-stackoverflow-orange.svg?style=flat)](http://stackoverflow.com/questions/tagged/reportportal)
 [![Build with Love](https://img.shields.io/badge/build%20with-❤%EF%B8%8F%E2%80%8D-lightgrey.svg)](http://reportportal.io?style=flat)
 
-The latest version: $LATEST_VERSION
+The latest version: $LATEST_VERSION. Please use `Download` link above to get the agent.
+
+## Overview
+
+REST Assured Request/Response logger for Report Portal
+
+The logger intercept and logs all Requests and Responses issued by REST Assured into Report Portal in Markdown format, including multipart
+requests. It recognizes payload types and attach them in corresponding manner: image types will be logged as images with thumbnails, binary
+types will be logged as entry attachments, text types will be formatted and logged in Markdown code blocks.
+
+## Configuration
+
+### Build system configuration
+
+You need to add the logger as one of your dependencies in Maven or Gradle.
+
+#### Maven
+
+`pom.xml`
+
+```xml
+
+<project>
+    <!-- project declaration omitted -->
+
+    <dependencies>
+        <dependency>
+            <groupId>com.epam.reportportal</groupId>
+            <artifactId>logger-java-rest-assured</artifactId>
+            <version>$LATEST_VERSION</version>
+        </dependency>
+    </dependencies>
+
+    <!-- build config omitted -->
+</project>
+```
+
+#### Gradle
+
+`build.gradle`
+
+```groovy
+dependencies {
+    testCompile 'com.epam.reportportal:logger-java-rest-assured:$LATEST_VERSION'
+}
+```
+
+### REST Assured configuration
+
+To start getting Request and Response logging in Report Portal you need to add the logger as one of your REST Assured filters. The best
+place for it is one which will be initialized at the earliest moment once during the test execution. E.G. a static initialization block in a
+base class for all tests:
+
+```java
+public class BaseTest {
+	static {
+		RestAssured.filters(new ReportPortalRestAssuredLoggingFilter(42, LogLevel.INFO));
+	}
+}
+```
+
+If you don't have a base class, you can pui initialization into one of the most general initialization block. E.G. for TestNG it may be
+`@BeforeSuite`:
+
+```java
+public class ApiTest {
+	@BeforeSuite
+	public void setupRestAssured() {
+		RestAssured.filters(new ReportPortalRestAssuredLoggingFilter(42, LogLevel.INFO));
+	}
+}
+```
+
+> **NOTE**: If you have more than one suite in your execution then it will mean REST Assured will be initialized over and over again with
+> the Logger and you will get log duplication in the following suites. You can apply `RestAssured.reset();` before the filter adding to avod
+> that. But this also means you will have to configure REST Assured anew each suite.
+
+### Sanitize Request / Response data
+
+To avoid logging sensitive data into Report Portal you can use corresponding converters:
+
+* Cookie converter
+* Header converter
+* URI converter
+* Content prettiers
+
+Cookie, Header and URI converters are set in the logger constructor:
+
+```java
+public class BaseTest {
+	static {
+		RestAssured.filters(new ReportPortalRestAssuredLoggingFilter(
+				42,
+				LogLevel.INFO,
+				Converters.HEADER_SANITIZING_CONVERTER,
+				Converters.COOKIE_SANITIZING_CONVERTER,
+				Converters.URI_SANITIZING_CONVERTER
+		));
+	}
+}
+```
+
+You are free to implement any converter by yourself with `java.util.function.Function` interface.
+
+Content prettier are more complex, they parse data based on its content type and apply defined transformations. Default prettiers just
+pretty-print JSON, HTML and XML data. To apply a custom content prettier call `ReportPortalRestAssuredLoggingFilter.setContentPrettiers`.
+E.G.:
+
+```java
+public class BaseTest {
+	private static final Map<String, Function<String, String>> MY_PRETTIERS = new HashMap<String, Function<String, String>>() {{
+		put(ContentType.APPLICATION_XML.getMimeType(), Converters.XML_PRETTIER);
+		put(ContentType.APPLICATION_SOAP_XML.getMimeType(), Converters.XML_PRETTIER);
+		put(ContentType.APPLICATION_ATOM_XML.getMimeType(), Converters.XML_PRETTIER);
+		put(ContentType.APPLICATION_SVG_XML.getMimeType(), Converters.XML_PRETTIER);
+		put(ContentType.APPLICATION_XHTML_XML.getMimeType(), Converters.XML_PRETTIER);
+		put(ContentType.TEXT_XML.getMimeType(), Converters.XML_PRETTIER);
+		put(ContentType.APPLICATION_JSON.getMimeType(), Converters.JSON_PRETTIER);
+		put("text/json", Converters.JSON_PRETTIER);
+		put(ContentType.TEXT_HTML.getMimeType(), Converters.HTML_PRETTIER);
+	}};
+
+	static {
+		RestAssured.filters(new ReportPortalRestAssuredLoggingFilter(42, LogLevel.INFO).setContentPrettiers(MY_PRETTIERS));
+	}
+}
+```

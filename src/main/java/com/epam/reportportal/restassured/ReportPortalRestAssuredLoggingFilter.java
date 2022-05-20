@@ -117,7 +117,7 @@ public class ReportPortalRestAssuredLoggingFilter implements OrderedFilter {
 	 *                              <code>header.getName() + ": " + header.getValue()</code>
 	 * @param cookieConvertFunction the same as 'headerConvertFunction' param but for Cookies, default function formats Cookies with
 	 *                              <code>toString</code> method
-	 * @param uriConverterFunction  the same as 'headerConvertFunction' param but for URI, default function returns URI &quote;as is&quote;
+	 * @param uriConverterFunction  the same as 'headerConvertFunction' param but for URI, default function returns URI "as is"
 	 */
 	public ReportPortalRestAssuredLoggingFilter(int filterOrder, @Nonnull LogLevel defaultLogLevel,
 			@Nullable Function<Header, String> headerConvertFunction, @Nullable Function<Cookie, String> cookieConvertFunction,

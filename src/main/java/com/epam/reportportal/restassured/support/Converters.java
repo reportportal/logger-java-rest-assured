@@ -67,8 +67,8 @@ public class Converters {
 	};
 
 	public static final Function<String, String> XML_PRETTIER = xml -> {
-		InputSource src = new InputSource(new StringReader(xml));
 		try {
+			InputSource src = new InputSource(new StringReader(xml));
 			org.w3c.dom.Document document = DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(src);
 
 			TransformerFactory transformerFactory = TransformerFactory.newInstance();

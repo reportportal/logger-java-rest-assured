@@ -68,6 +68,8 @@ public class ConvertersTest {
 						"<html>\n  <head></head>\n  <body>\n    ^$V\\B#$\"^\n  </body>\n</html>" },
 				new Object[] { Converters.HTML_PRETTIER, "</", "<html>\n  <head></head>\n  <body>\n    &lt;/\n  </body>\n</html>" },
 				new Object[] { Converters.HTML_PRETTIER, "", "<html>\n  <head></head>\n  <body></body>\n</html>" },
+				new Object[] { Converters.JSON_PRETTIER, null, null },
+				new Object[] { Converters.XML_PRETTIER, null, null },
 				new Object[] { Converters.HTML_PRETTIER, null, null }
 		);
 	}

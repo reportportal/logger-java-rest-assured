@@ -510,4 +510,45 @@ public class ReportPortalRestAssuredLoggingFilterTest {
 		assertThat(logs.getRight().get(0).getData().getMediaType(), equalTo(imageType));
 		assertThat(logs.getRight().get(0).getData().read(), equalTo(image));
 	}
+
+	public static Iterable<Object[]> invalidContentTypes() {
+		return Arrays.asList(
+				new Object[] { "", ContentType.APPLICATION_OCTET_STREAM.getMimeType() },
+				new Object[] { null, ContentType.APPLICATION_OCTET_STREAM.getMimeType() },
+				new Object[] { "*/*", "*/*" },
+				new Object[] { "something invalid", "something invalid" },
+				new Object[] { "/", "/" },
+				new Object[] { "#*'\\`%^!@/\"$;", "#*'\\`%^!@/\"$" },
+				new Object[] { "a/a;F#%235f\\=f324$%^&", "a/a" }
+		);
+	}
+
+	@ParameterizedTest
+	@MethodSource("invalidContentTypes")
+	@SuppressWarnings("rawtypes")
+	public void test_rest_assured_logger_invalid_content_type(String mimeType, String expectedType) throws IOException {
+		byte[] image = getResource(IMAGE);
+		FilterableRequestSpecification requestSpecification = mockBasicRequest(mimeType);
+
+		when(requestSpecification.getBody()).thenReturn(image);
+
+		Response responseObject = mockBasicResponse(mimeType);
+		ResponseBody responseBodyObject = mock(ResponseBody.class);
+		when(responseObject.getBody()).thenReturn(responseBodyObject);
+		when(responseBodyObject.asByteArray()).thenReturn(image);
+
+		Triple<List<String>, List<String>, List<ReportPortalMessage>> logs = runFilterComplexMessageCapture(
+				requestSpecification,
+				responseObject
+		);
+		assertThat(logs.getRight(), hasSize(2)); // Request + Response
+		assertThat(logs.getRight().get(0).getMessage(), equalTo(EMPTY_REQUEST));
+		assertThat(logs.getRight().get(1).getMessage(), equalTo(EMPTY_RESPONSE));
+
+		assertThat(logs.getRight().get(0).getData().getMediaType(), equalTo(expectedType));
+		assertThat(logs.getRight().get(1).getData().getMediaType(), equalTo(expectedType));
+
+		assertThat(logs.getRight().get(0).getData().read(), equalTo(image));
+		assertThat(logs.getRight().get(1).getData().read(), equalTo(image));
+	}
 }

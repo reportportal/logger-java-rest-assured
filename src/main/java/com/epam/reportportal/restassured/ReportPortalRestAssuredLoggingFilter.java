@@ -99,9 +99,11 @@ public class ReportPortalRestAssuredLoggingFilter implements OrderedFilter {
 	private final Function<Cookie, String> cookieConverter;
 	private final Function<String, String> uriConverter;
 
+	@Nonnull
 	private Set<String> textContentTypes = TEXT_TYPES;
+	@Nonnull
 	private Set<String> multipartContentTypes = MULTIPART_TYPES;
-
+	@Nonnull
 	private Map<String, Function<String, String>> contentPrettiers = DEFAULT_PRETTIERS;
 
 	/**
@@ -232,7 +234,7 @@ public class ReportPortalRestAssuredLoggingFilter implements OrderedFilter {
 		}
 	}
 
-	private void logMultiPartRequest(FilterableRequestSpecification request) {
+	private void logMultiPartRequest(@Nonnull FilterableRequestSpecification request) {
 		Date currentDate = new Date();
 		String headers = formatTextHeader(request.getHeaders(), request.getCookies());
 		if (!headers.isEmpty()) {
@@ -274,12 +276,17 @@ public class ReportPortalRestAssuredLoggingFilter implements OrderedFilter {
 		});
 	}
 
-	private void emitLog(FilterableRequestSpecification request) {
+	private String getMimeType(@Nullable String requestType, @Nullable String contentType) {
+		return ofNullable(contentType).filter(ct -> !ct.isEmpty())
+				.map(ct -> ContentType.parse(contentType).getMimeType())
+				.orElse(ContentType.APPLICATION_OCTET_STREAM.getMimeType());
+	}
+
+	private void emitLog(@Nonnull FilterableRequestSpecification request) {
 		String requestString = ofNullable(uriConverter).map(u -> String.format("%s to %s", request.getMethod(), u.apply(request.getURI())))
 				.orElse(request.getMethod());
 		String logText = REQUEST_TAG + "\n" + requestString;
-		String rqContent = ofNullable(request.getContentType()).map(ct -> ContentType.parse(ct).getMimeType())
-				.orElse(ContentType.APPLICATION_OCTET_STREAM.getMimeType());
+		String rqContent = getMimeType("Request", request.getContentType());
 
 		if (textContentTypes.contains(rqContent)) {
 			String body = formatTextEntity(BODY_TAG, request.getHeaders(), request.getCookies(), request.getBody(), rqContent);
@@ -302,15 +309,14 @@ public class ReportPortalRestAssuredLoggingFilter implements OrderedFilter {
 		}
 	}
 
-	private void emitLog(Response response) {
+	private void emitLog(@Nullable Response response) {
 		if (response == null) {
 			ReportPortal.emitLog(NULL_RESPONSE, logLevel, new Date());
 			return;
 		}
 
 		String logText = RESPONSE_TAG + "\n" + response.getStatusLine();
-		String mimeType = ofNullable(response.getContentType()).map(ct -> ContentType.parse(ct).getMimeType())
-				.orElse(ContentType.APPLICATION_OCTET_STREAM.getMimeType());
+		String mimeType = getMimeType("Response", response.getContentType());
 		if (TEXT_TYPES.contains(mimeType)) {
 			String body = formatTextEntity(BODY_TAG,
 					response.getHeaders(),
@@ -335,17 +341,17 @@ public class ReportPortalRestAssuredLoggingFilter implements OrderedFilter {
 		return response;
 	}
 
-	public ReportPortalRestAssuredLoggingFilter setTextContentTypes(Set<String> textContentTypes) {
+	public ReportPortalRestAssuredLoggingFilter setTextContentTypes(@Nonnull Set<String> textContentTypes) {
 		this.textContentTypes = textContentTypes;
 		return this;
 	}
 
-	public ReportPortalRestAssuredLoggingFilter setMultipartContentTypes(Set<String> multipartContentTypes) {
+	public ReportPortalRestAssuredLoggingFilter setMultipartContentTypes(@Nonnull Set<String> multipartContentTypes) {
 		this.multipartContentTypes = multipartContentTypes;
 		return this;
 	}
 
-	public ReportPortalRestAssuredLoggingFilter setContentPrettiers(Map<String, Function<String, String>> contentPrettiers) {
+	public ReportPortalRestAssuredLoggingFilter setContentPrettiers(@Nonnull Map<String, Function<String, String>> contentPrettiers) {
 		this.contentPrettiers = contentPrettiers;
 		return this;
 	}

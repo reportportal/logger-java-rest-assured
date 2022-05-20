@@ -276,7 +276,7 @@ public class ReportPortalRestAssuredLoggingFilter implements OrderedFilter {
 		});
 	}
 
-	private String getMimeType(@Nullable String requestType, @Nullable String contentType) {
+	private String getMimeType(@Nullable String contentType) {
 		return ofNullable(contentType).filter(ct -> !ct.isEmpty())
 				.map(ct -> ContentType.parse(contentType).getMimeType())
 				.orElse(ContentType.APPLICATION_OCTET_STREAM.getMimeType());
@@ -286,7 +286,7 @@ public class ReportPortalRestAssuredLoggingFilter implements OrderedFilter {
 		String requestString = ofNullable(uriConverter).map(u -> String.format("%s to %s", request.getMethod(), u.apply(request.getURI())))
 				.orElse(request.getMethod());
 		String logText = REQUEST_TAG + "\n" + requestString;
-		String rqContent = getMimeType("Request", request.getContentType());
+		String rqContent = getMimeType(request.getContentType());
 
 		if (textContentTypes.contains(rqContent)) {
 			String body = formatTextEntity(BODY_TAG, request.getHeaders(), request.getCookies(), request.getBody(), rqContent);
@@ -316,7 +316,7 @@ public class ReportPortalRestAssuredLoggingFilter implements OrderedFilter {
 		}
 
 		String logText = RESPONSE_TAG + "\n" + response.getStatusLine();
-		String mimeType = getMimeType("Response", response.getContentType());
+		String mimeType = getMimeType(response.getContentType());
 		if (TEXT_TYPES.contains(mimeType)) {
 			String body = formatTextEntity(BODY_TAG,
 					response.getHeaders(),

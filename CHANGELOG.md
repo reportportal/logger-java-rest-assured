@@ -1,6 +1,8 @@
 # Changelog
 
 ## [Unreleased]
+### Fixed
+- Empty Content-Type parse exception, by @HardNorth
 
 ## [5.1.3]
 ### Fixed

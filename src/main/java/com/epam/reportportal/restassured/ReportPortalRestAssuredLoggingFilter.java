@@ -114,10 +114,10 @@ public class ReportPortalRestAssuredLoggingFilter implements OrderedFilter {
 	 * @param defaultLogLevel       log leve on which REST Assured requests/responses will appear on Report Portal
 	 * @param headerConvertFunction if you want to preprocess your HTTP Headers before they appear on Report Portal provide this custom
 	 *                              function for the class, default function formats it like that:
-	 *                              <code>header.getName() + &quote;: &quote; + header.getValue()</code>
+	 *                              <code>header.getName() + ": " + header.getValue()</code>
 	 * @param cookieConvertFunction the same as 'headerConvertFunction' param but for Cookies, default function formats Cookies with
 	 *                              <code>toString</code> method
-	 * @param uriConverterFunction  the same as 'headerConvertFunction' param but for URI, default function returns URI &quote;as is&quote;
+	 * @param uriConverterFunction  the same as 'headerConvertFunction' param but for URI, default function returns URI "as is"
 	 */
 	public ReportPortalRestAssuredLoggingFilter(int filterOrder, @Nonnull LogLevel defaultLogLevel,
 			@Nullable Function<Header, String> headerConvertFunction, @Nullable Function<Cookie, String> cookieConvertFunction,
@@ -137,7 +137,7 @@ public class ReportPortalRestAssuredLoggingFilter implements OrderedFilter {
 	 * @param defaultLogLevel       log leve on which REST Assured requests/responses will appear on Report Portal
 	 * @param headerConvertFunction if you want to preprocess your HTTP Headers before they appear on Report Portal provide this custom
 	 *                              function for the class, default function formats it like that:
-	 *                              <code>header.getName() + &quote;: &quote; + header.getValue()</code>
+	 *                              <code>header.getName() + ": " + header.getValue()</code>
 	 * @param cookieConvertFunction the same as 'headerConvertFunction' param but for Cookies, default function formats Cookies with
 	 *                              <code>toString</code> method
 	 */
@@ -154,7 +154,7 @@ public class ReportPortalRestAssuredLoggingFilter implements OrderedFilter {
 	 * @param defaultLogLevel       log leve on which REST Assured requests/responses will appear on Report Portal
 	 * @param headerConvertFunction if you want to preprocess your HTTP Headers before they appear on Report Portal provide this custom
 	 *                              function for the class, default function formats it like that:
-	 *                              <code>header.getName() + &quote;: &quote; + header.getValue()</code>
+	 *                              <code>header.getName() + ": " + header.getValue()</code>
 	 */
 	public ReportPortalRestAssuredLoggingFilter(int filterOrder, @Nonnull LogLevel defaultLogLevel,
 			@Nullable Function<Header, String> headerConvertFunction) {

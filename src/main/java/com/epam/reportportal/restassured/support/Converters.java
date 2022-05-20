@@ -61,14 +61,14 @@ public class Converters {
 		try {
 			JsonNode node = OBJECT_MAPPER.readTree(json);
 			return OBJECT_MAPPER.writerWithDefaultPrettyPrinter().writeValueAsString(node).trim();
-		} catch (JsonProcessingException e) {
-			return null;
+		} catch (Exception ignore) {
+			return json;
 		}
 	};
 
 	public static final Function<String, String> XML_PRETTIER = xml -> {
-		InputSource src = new InputSource(new StringReader(xml));
 		try {
+			InputSource src = new InputSource(new StringReader(xml));
 			org.w3c.dom.Document document = DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(src);
 
 			TransformerFactory transformerFactory = TransformerFactory.newInstance();
@@ -81,12 +81,18 @@ public class Converters {
 			Writer out = new StringWriter();
 			transformer.transform(new DOMSource(document), new StreamResult(out));
 			return out.toString().trim();
-		} catch (IOException | ParserConfigurationException | TransformerException | SAXException e) {
-			return null;
+		} catch (Exception ignore) {
+			return xml;
 		}
 	};
 
-	public static final Function<String, String> HTML_PRETTIER = html -> Jsoup.parse(html).outputSettings(OUTPUT_SETTINGS).html().trim();
+	public static final Function<String, String> HTML_PRETTIER = html -> {
+		try {
+			return Jsoup.parse(html).outputSettings(OUTPUT_SETTINGS).html().trim();
+		} catch (Exception ignore) {
+			return html;
+		}
+	};
 
 	public static final Function<Cookie, String> DEFAULT_COOKIE_CONVERTER = Cookie::toString;
 

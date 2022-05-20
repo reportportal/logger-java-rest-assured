@@ -61,7 +61,14 @@ public class ConvertersTest {
 				new Object[] { Converters.XML_PRETTIER, "<test><key><value>value</value></key></test>",
 						"<test>\n  <key>\n    <value>value</value>\n  </key>\n</test>" },
 				new Object[] { Converters.HTML_PRETTIER, "<html><body><h1>hello world</h1></body></html>",
-						"<html>\n  <head></head>\n  <body>\n    <h1>hello world</h1>\n  </body>\n</html>" }
+						"<html>\n  <head></head>\n  <body>\n    <h1>hello world</h1>\n  </body>\n</html>" },
+				new Object[] { Converters.JSON_PRETTIER, "^$V\\B#$^", "^$V\\B#$^" },
+				new Object[] { Converters.XML_PRETTIER, "^$V\\B#$^", "^$V\\B#$^" },
+				new Object[] { Converters.HTML_PRETTIER, "^$V\\B#$\"^",
+						"<html>\n  <head></head>\n  <body>\n    ^$V\\B#$\"^\n  </body>\n</html>" },
+				new Object[] { Converters.HTML_PRETTIER, "</", "<html>\n  <head></head>\n  <body>\n    &lt;/\n  </body>\n</html>" },
+				new Object[] { Converters.HTML_PRETTIER, "", "<html>\n  <head></head>\n  <body></body>\n</html>" },
+				new Object[] { Converters.HTML_PRETTIER, null, null }
 		);
 	}
 

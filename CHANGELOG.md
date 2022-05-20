@@ -1,8 +1,6 @@
 # Changelog
 
 ## [Unreleased]
-
-## [5.1.6]
 ### Fixed
 - Invalid content pretty-print crash, by @HardNorth
 

@@ -35,7 +35,6 @@ import java.io.StringReader;
 import java.io.StringWriter;
 import java.io.Writer;
 import java.net.URI;
-import java.net.URISyntaxException;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
@@ -104,13 +103,15 @@ public class Converters {
 			"sessionid"
 	));
 
-	public static final Function<Cookie, String> COOKIE_SANITIZING_CONVERTER = cookie -> SESSION_COOKIES.contains(cookie.getName()) ?
-			cookie.getName() + "=" + REMOVED_TAG :
-			DEFAULT_COOKIE_CONVERTER.apply(cookie);
+	public static final Function<Cookie, String> COOKIE_SANITIZING_CONVERTER = cookie -> cookie == null ?
+			null :
+			SESSION_COOKIES.contains(cookie.getName()) ? cookie.getName() + "=" + REMOVED_TAG : DEFAULT_COOKIE_CONVERTER.apply(cookie);
 
-	public static final Function<Header, String> HEADER_SANITIZING_CONVERTER = header -> HttpHeaders.AUTHORIZATION.equals(header.getName()) ?
-			header.getName() + ": " + REMOVED_TAG :
-			DEFAULT_HEADER_CONVERTER.apply(header);
+	public static final Function<Header, String> HEADER_SANITIZING_CONVERTER = header -> header == null ?
+			null :
+			HttpHeaders.AUTHORIZATION.equals(header.getName()) ?
+					header.getName() + ": " + REMOVED_TAG :
+					DEFAULT_HEADER_CONVERTER.apply(header);
 
 	public static final Function<String, String> URI_SANITIZING_CONVERTER = uriStr -> {
 		try {
@@ -129,7 +130,7 @@ public class Converters {
 					uri.getQuery(),
 					uri.getFragment()
 			).toString();
-		} catch (URISyntaxException | IllegalArgumentException e) {
+		} catch (Exception ignore) {
 			return uriStr;
 		}
 	};

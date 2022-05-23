@@ -1,6 +1,8 @@
 # Changelog
 
 ## [Unreleased]
+### Fixed
+- NullPointerExceptions in case of null values for different converters, by @HardNorth
 
 ## [5.1.5]
 ### Fixed

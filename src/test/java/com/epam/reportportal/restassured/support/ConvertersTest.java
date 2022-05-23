@@ -19,7 +19,6 @@ package com.epam.reportportal.restassured.support;
 import io.restassured.http.Cookie;
 import io.restassured.http.Header;
 import org.apache.http.HttpHeaders;
-import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
@@ -31,27 +30,53 @@ import static org.hamcrest.Matchers.equalTo;
 
 public class ConvertersTest {
 
-	@Test
-	public void testSessionIdHeaderRemove() {
-		Cookie cookie = new Cookie.Builder("session_id", "my_test_session_id").setComment("test comment")
-				.setDomain("example.com")
-				.setHttpOnly(true)
-				.setPath("/")
-				.build();
-		String result = Converters.COOKIE_SANITIZING_CONVERTER.apply(cookie);
-		assertThat(result, equalTo(cookie.getName() + "=" + Converters.REMOVED_TAG));
+	public static Iterable<Object[]> cookieCases() {
+		return Arrays.asList(
+				new Object[] { new Cookie.Builder("session_id", "my_test_session_id").setComment("test comment")
+						.setDomain("example.com")
+						.setHttpOnly(true)
+						.setPath("/").build(), "session_id=" + Converters.REMOVED_TAG },
+				new Object[] { null, null },
+				new Object[] { new Cookie.Builder("test_cookie", "my_test_session_id").setPath("/").build(),
+						"test_cookie=my_test_session_id;Path=/"}
+		);
 	}
 
-	@Test
-	public void testAuthorizationHeaderRemove() {
-		String result = Converters.HEADER_SANITIZING_CONVERTER.apply(new Header(HttpHeaders.AUTHORIZATION, "Bearer test_token"));
-		assertThat(result, equalTo(HttpHeaders.AUTHORIZATION + ": " + Converters.REMOVED_TAG));
+	@ParameterizedTest
+	@MethodSource("cookieCases")
+	public void testSessionIdHeaderRemove(Cookie input, String expected) {
+		assertThat(Converters.COOKIE_SANITIZING_CONVERTER.apply(input), equalTo(expected));
 	}
 
-	@Test
-	public void testUriPasswordRemove() {
-		String result = Converters.URI_SANITIZING_CONVERTER.apply("https://test:password@example.com/my/api");
-		assertThat(result, equalTo("https://test:" + Converters.REMOVED_TAG + "@example.com/my/api"));
+	public static Iterable<Object[]> headerCases() {
+		return Arrays.asList(
+				new Object[] { new Header(HttpHeaders.AUTHORIZATION, "Bearer test_token"),
+						HttpHeaders.AUTHORIZATION + ": " + Converters.REMOVED_TAG },
+				new Object[] { null, null },
+				new Object[] { new Header(HttpHeaders.ACCEPT, "*/*"), HttpHeaders.ACCEPT + ": \\*/\\*" }
+		);
+	}
+
+	@ParameterizedTest
+	@MethodSource("headerCases")
+	public void testAuthorizationHeaderRemove(Header input, String expected) {
+		assertThat(Converters.HEADER_SANITIZING_CONVERTER.apply(input), equalTo(expected));
+	}
+
+	public static Iterable<Object[]> uriCases() {
+		return Arrays.asList(
+				new Object[] { "://my-invalid-uri", "://my-invalid-uri" },
+				new Object[] { "https://test:password@example.com/my/api",
+						"https://test:" + Converters.REMOVED_TAG + "@example.com/my/api" },
+				new Object[] { null, null },
+				new Object[] { "https://test@example.com/my/api", "https://test@example.com/my/api" }
+		);
+	}
+
+	@ParameterizedTest
+	@MethodSource("uriCases")
+	public void testUriSanitizingConverter(String input, String expected) {
+		assertThat(Converters.URI_SANITIZING_CONVERTER.apply(input), equalTo(expected));
 	}
 
 	public static Iterable<Object[]> prettierData() {

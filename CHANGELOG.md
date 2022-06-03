@@ -3,6 +3,8 @@
 ## [Unreleased]
 ### Fixed
 - NullPointerExceptions in case of null values for different converters, by @HardNorth
+### Changed
+- `new Date()` replaced with `Calendar.getInstance().getTime()`
 
 ## [5.1.5]
 ### Fixed

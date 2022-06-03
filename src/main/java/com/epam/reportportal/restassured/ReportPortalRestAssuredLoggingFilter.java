@@ -228,14 +228,17 @@ public class ReportPortalRestAssuredLoggingFilter implements OrderedFilter {
 
 	private void attachAsBinary(@Nullable String message, @Nullable byte[] attachment, @Nonnull String contentType) {
 		if (attachment == null) {
-			ReportPortal.emitLog(message, logLevel, new Date());
+			ReportPortal.emitLog(message, logLevel, Calendar.getInstance().getTime());
 		} else {
-			ReportPortal.emitLog(new ReportPortalMessage(ByteSource.wrap(attachment), contentType, message), logLevel, new Date());
+			ReportPortal.emitLog(new ReportPortalMessage(ByteSource.wrap(attachment), contentType, message),
+					logLevel,
+					Calendar.getInstance().getTime()
+			);
 		}
 	}
 
 	private void logMultiPartRequest(@Nonnull FilterableRequestSpecification request) {
-		Date currentDate = new Date();
+		Date currentDate = Calendar.getInstance().getTime();
 		String headers = formatTextHeader(request.getHeaders(), request.getCookies());
 		if (!headers.isEmpty()) {
 			ReportPortal.emitLog(formatTextHeader(request.getHeaders(), request.getCookies()), logLevel, currentDate);
@@ -291,10 +294,13 @@ public class ReportPortalRestAssuredLoggingFilter implements OrderedFilter {
 		if (textContentTypes.contains(rqContent)) {
 			String body = formatTextEntity(BODY_TAG, request.getHeaders(), request.getCookies(), request.getBody(), rqContent);
 			String entry = body.isEmpty() ? logText : logText + "\n\n" + body;
-			ReportPortal.emitLog(entry, logLevel, new Date());
+			ReportPortal.emitLog(entry, logLevel, Calendar.getInstance().getTime());
 		} else if (multipartContentTypes.contains(rqContent)) {
 			if (!ofNullable(request.getMultiPartParams()).filter(p -> !p.isEmpty()).isPresent()) {
-				ReportPortal.emitLog(logText + formatTextHeader(request.getHeaders(), request.getCookies()), logLevel, new Date());
+				ReportPortal.emitLog(logText + formatTextHeader(request.getHeaders(), request.getCookies()),
+						logLevel,
+						Calendar.getInstance().getTime()
+				);
 				return;
 			}
 
@@ -311,7 +317,7 @@ public class ReportPortalRestAssuredLoggingFilter implements OrderedFilter {
 
 	private void emitLog(@Nullable Response response) {
 		if (response == null) {
-			ReportPortal.emitLog(NULL_RESPONSE, logLevel, new Date());
+			ReportPortal.emitLog(NULL_RESPONSE, logLevel, Calendar.getInstance().getTime());
 			return;
 		}
 
@@ -325,7 +331,7 @@ public class ReportPortalRestAssuredLoggingFilter implements OrderedFilter {
 					mimeType
 			);
 			String entry = body.isEmpty() ? logText : logText + "\n\n" + body;
-			ReportPortal.emitLog(entry, logLevel, new Date());
+			ReportPortal.emitLog(entry, logLevel, Calendar.getInstance().getTime());
 		} else {
 			String prefix = formatTextHeader(response.getHeaders(), response.getDetailedCookies());
 			String entry = prefix.isEmpty() ? logText : logText + "\n\n" + prefix;

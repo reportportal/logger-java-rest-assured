@@ -90,7 +90,8 @@ public class Converters {
 
 	public static final Function<Cookie, String> DEFAULT_COOKIE_CONVERTER = Cookie::toString;
 
-	public static final Function<Header, String> DEFAULT_HEADER_CONVERTER = h -> h.getName() + ": " + h.getValue().replace("*", "\\*");
+	public static final Function<Header, String> DEFAULT_HEADER_CONVERTER = h -> h.getName() + ": " + h.getValue()
+			.replace("*", "\\*");
 
 	public static final Function<String, String> DEFAULT_URI_CONVERTER = u -> u;
 
@@ -105,7 +106,9 @@ public class Converters {
 
 	public static final Function<Cookie, String> COOKIE_SANITIZING_CONVERTER = cookie -> cookie == null ?
 			null :
-			SESSION_COOKIES.contains(cookie.getName()) ? cookie.getName() + "=" + REMOVED_TAG : DEFAULT_COOKIE_CONVERTER.apply(cookie);
+			SESSION_COOKIES.contains(cookie.getName()) ?
+					cookie.getName() + "=" + REMOVED_TAG :
+					DEFAULT_COOKIE_CONVERTER.apply(cookie);
 
 	public static final Function<Header, String> HEADER_SANITIZING_CONVERTER = header -> header == null ?
 			null :
@@ -116,12 +119,16 @@ public class Converters {
 	public static final Function<String, String> URI_SANITIZING_CONVERTER = uriStr -> {
 		try {
 			URI uri = URI.create(uriStr);
-			String userInfo = ofNullable(uri.getUserInfo()).filter(info -> !info.isEmpty()).map(info -> info.split(":", 2)).map(info -> {
-				if (info.length > 1) {
-					return new String[] { info[0], REMOVED_TAG };
-				}
-				return info;
-			}).map(info -> String.join(":", info)).orElse(null);
+			String userInfo = ofNullable(uri.getUserInfo()).filter(info -> !info.isEmpty())
+					.map(info -> info.split(":", 2))
+					.map(info -> {
+						if (info.length > 1) {
+							return new String[] { info[0], REMOVED_TAG };
+						}
+						return info;
+					})
+					.map(info -> String.join(":", info))
+					.orElse(null);
 			return new URI(uri.getScheme(),
 					userInfo,
 					uri.getHost(),

@@ -47,6 +47,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
+import static com.epam.reportportal.restassured.support.HttpUtils.*;
 import static java.util.Optional.ofNullable;
 
 /**
@@ -62,16 +63,6 @@ import static java.util.Optional.ofNullable;
  * </pre>
  */
 public class ReportPortalRestAssuredLoggingFilter implements OrderedFilter {
-
-	private static final Set<String> MULTIPART_TYPES = Collections.singleton(ContentType.MULTIPART_FORM_DATA.getMimeType());
-
-	private static final Set<String> TEXT_TYPES = new HashSet<>(Arrays.asList(ContentType.APPLICATION_JSON.getMimeType(),
-			ContentType.TEXT_PLAIN.getMimeType(),
-			ContentType.TEXT_HTML.getMimeType(),
-			ContentType.TEXT_XML.getMimeType(),
-			ContentType.APPLICATION_XML.getMimeType(),
-			ContentType.DEFAULT_TEXT.getMimeType()
-	));
 
 	private static final Map<String, Function<String, String>> DEFAULT_PRETTIERS = new HashMap<String, Function<String, String>>() {{
 		put(ContentType.APPLICATION_XML.getMimeType(), Converters.XML_PRETTIER);
@@ -277,12 +268,6 @@ public class ReportPortalRestAssuredLoggingFilter implements OrderedFilter {
 				}
 			}
 		});
-	}
-
-	private String getMimeType(@Nullable String contentType) {
-		return ofNullable(contentType).filter(ct -> !ct.isEmpty())
-				.map(ct -> ContentType.parse(contentType).getMimeType())
-				.orElse(ContentType.APPLICATION_OCTET_STREAM.getMimeType());
 	}
 
 	private void emitLog(@Nonnull FilterableRequestSpecification request) {

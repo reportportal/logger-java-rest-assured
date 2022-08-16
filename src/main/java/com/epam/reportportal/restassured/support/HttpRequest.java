@@ -17,8 +17,8 @@
 package com.epam.reportportal.restassured.support;
 
 import javax.annotation.Nonnull;
-import java.util.ArrayList;
-import java.util.List;
+import javax.annotation.Nullable;
+import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -38,9 +38,17 @@ public class HttpRequest {
 
 	private Function<String, String> uriConverter;
 
+	private Function<Header, String> headerConverter;
+
+	private Function<Cookie, String> cookieConverter;
+
 	private List<Header> headers;
 
 	private List<Cookie> cookies;
+
+	private BodyType type = BodyType.NONE;
+
+	private Object body;
 
 	public HttpRequest(@Nonnull String requestMethod, @Nonnull String requestUri) {
 		method = requestMethod;
@@ -56,7 +64,7 @@ public class HttpRequest {
 	@Nonnull
 	public String getHeadersString() {
 		return of(headers.stream()
-				.map(Header::format)
+				.map(headerConverter)
 				.filter(h -> h != null && !h.isEmpty())
 				.collect(Collectors.joining(LINE_DELIMITER,
 						LINE_DELIMITER + HEADERS_TAG + LINE_DELIMITER,
@@ -67,7 +75,7 @@ public class HttpRequest {
 	@Nonnull
 	public String getCookiesString() {
 		return of(cookies.stream()
-				.map(Cookie::format)
+				.map(cookieConverter)
 				.filter(c -> c != null && !c.isEmpty())
 				.collect(Collectors.joining(LINE_DELIMITER,
 						LINE_DELIMITER + COOKIES_TAG + LINE_DELIMITER,
@@ -79,12 +87,152 @@ public class HttpRequest {
 		this.uriConverter = uriConverter;
 	}
 
+	public void setHeaderConverter(@Nonnull Function<Header, String> headerConverter) {
+		this.headerConverter = headerConverter;
+	}
+
+	public void setCookieConverter(@Nonnull Function<Cookie, String> cookieConverter) {
+		this.cookieConverter = cookieConverter;
+	}
+
 	public void setHeaders(@Nonnull List<Header> requestHeaders) {
 		headers = requestHeaders;
 	}
 
 	public void setCookies(@Nonnull List<Cookie> cookies) {
 		this.cookies = cookies;
+	}
+
+	public void setType(@Nonnull BodyType type) {
+		this.type = type;
+	}
+
+	public BodyType getType() {
+		return type;
+	}
+
+	public <T> void setBody(@Nullable T body) {
+		if (body == null) {
+			setType(BodyType.NONE);
+		}
+		this.body = body;
+	}
+
+	public String getTextBody() {
+		Objects.requireNonNull(body);
+		if (BodyType.TEXT == type) {
+			return (String) body;
+		}
+		throw new ClassCastException("Cannot return text body for body type: " + type.name());
+
+	}
+
+	public byte[] getBinaryBody() {
+		Objects.requireNonNull(body);
+		if (BodyType.BINARY == type) {
+			return (byte[]) body;
+		}
+		throw new ClassCastException("Cannot return binary body for body type: " + type.name());
+	}
+
+	@SuppressWarnings("unchecked")
+	public List<Part> getMultipartBody() {
+		Objects.requireNonNull(body);
+		if (BodyType.MULTIPART == type) {
+			return (List<Part>) body;
+		}
+		throw new ClassCastException("Cannot return multipart body for body type: " + type.name());
+	}
+
+	@Nullable
+	public <T> T getBody(Class<T> type) {
+		return type.cast(body);
+	}
+
+	public boolean hasBody() {
+		return null != type && BodyType.NONE != type;
+	}
+
+	public static class Part {
+		private final PartType type;
+		private final Object payload;
+
+		private String controlName;
+		private String mimeType;
+		private Map<String, String> headers;
+		private String charset;
+		private String fileName;
+
+		public Part(@Nonnull PartType type, @Nonnull Object payload) {
+			this.type = type;
+			this.payload = payload;
+		}
+
+		public String getTextPayload() {
+			if (PartType.TEXT == type) {
+				return (String) payload;
+			}
+			throw new ClassCastException("Cannot return text for payload type: " + type.name());
+		}
+
+		public byte[] getBinaryPayload() {
+			if (PartType.BINARY == type) {
+				return (byte[]) payload;
+			}
+			throw new ClassCastException("Cannot return binary data for payload type: " + type.name());
+		}
+
+		public String getControlName() {
+			return controlName;
+		}
+
+		public void setControlName(String controlName) {
+			this.controlName = controlName;
+		}
+
+		public String getMimeType() {
+			return mimeType;
+		}
+
+		public void setMimeType(String mimeType) {
+			this.mimeType = mimeType;
+		}
+
+		public Map<String, String> getHeaders() {
+			return headers;
+		}
+
+		public void setHeaders(Map<String, String> headers) {
+			this.headers = headers;
+		}
+
+		public String getCharset() {
+			return charset;
+		}
+
+		public void setCharset(String charset) {
+			this.charset = charset;
+		}
+
+		public String getFileName() {
+			return fileName;
+		}
+
+		public void setFileName(String fileName) {
+			this.fileName = fileName;
+		}
+	}
+
+	public enum PartType {
+		TEXT,
+		BINARY
+	}
+
+	public enum BodyType {
+		TEXT,
+		MULTIPART,
+		BINARY,
+		NONE
 	}
 
 	public static class Builder {
@@ -94,6 +242,12 @@ public class HttpRequest {
 		private final List<Cookie> cookies = new ArrayList<>();
 
 		private Function<String, String> uriConverter;
+		private Function<Header, String> headerConverter;
+		private Function<Cookie, String> cookieConverter;
+
+		private BodyType type;
+
+		private Object body;
 
 		public Builder(@Nonnull String requestMethod, @Nonnull String requestUri) {
 			method = requestMethod;
@@ -105,25 +259,82 @@ public class HttpRequest {
 			return this;
 		}
 
-		public Builder addHeader(String name, String value, Function<Header, String> converter) {
-			headers.add(new Header(name, value, converter));
+		public Builder headerConverter(Function<Header, String> headerConverter) {
+			this.headerConverter = headerConverter;
+			return this;
+		}
+
+		public Builder cookieConverter(Function<Cookie, String> cookieConverter) {
+			this.cookieConverter = cookieConverter;
 			return this;
 		}
 
 		public Builder addHeader(String name, String value) {
-			return addHeader(name, value, DefaultHttpHeaderConverter.INSTANCE);
+			headers.add(new Header(name, value));
+			return this;
+		}
+
+		public Builder addCookie(String name, String value, String comment, String path, String domain, Long maxAge,
+				Boolean secured, Boolean httpOnly, Date expiryDate, Integer version, String sameSite) {
+			Cookie cookie = new Cookie(name);
+			cookie.setValue(value);
+			cookie.setComment(comment);
+			cookie.setPath(path);
+			cookie.setDomain(domain);
+			cookie.setMaxAge(maxAge);
+			cookie.setSecured(secured);
+			cookie.setHttpOnly(httpOnly);
+			cookie.setExpiryDate(expiryDate);
+			cookie.setVersion(version);
+			cookie.setSameSite(sameSite);
+			cookies.add(cookie);
+			return this;
+		}
+
+		public Builder addCookie(String name, String value) {
+			return addCookie(name, value, null, null, null, null, null, null, null, null, null);
 		}
 
 		public Builder addCookie(String name) {
-			cookies.add(new Cookie(name, DefaultCookieConverter.INSTANCE));
+			return addCookie(name, null);
+		}
+
+		public Builder bodyText(String body) {
+			type = BodyType.TEXT;
+			this.body = body;
+			return this;
+		}
+
+		public Builder bodyBytes(byte[] body) {
+			type = BodyType.BINARY;
+			this.body = body;
+			return this;
+		}
+
+		@SuppressWarnings("unchecked")
+		public Builder addBodyPart(HttpRequest.Part part) {
+			if (body != null && type == BodyType.MULTIPART) {
+				((List<HttpRequest.Part>) body).add(part);
+			} else {
+				type = BodyType.MULTIPART;
+				body = new ArrayList<>(Collections.singleton(part));
+			}
 			return this;
 		}
 
 		public HttpRequest build() {
 			HttpRequest result = new HttpRequest(method, uri);
 			result.setUriConverter(ofNullable(uriConverter).orElse(Converters.DEFAULT_URI_CONVERTER));
+			result.setHeaderConverter(ofNullable(headerConverter).orElse(DefaultHttpHeaderConverter.INSTANCE));
+			result.setCookieConverter(ofNullable(cookieConverter).orElse(DefaultCookieConverter.INSTANCE));
 			result.setHeaders(headers);
 			result.setCookies(cookies);
+			if (body != null) {
+				result.setType(type);
+				result.setBody(body);
+			} else {
+				result.setType(BodyType.NONE);
+			}
 			return result;
 		}
 	}

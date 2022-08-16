@@ -17,15 +17,11 @@
 package com.epam.reportportal.restassured.support;
 
 import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 import java.util.Date;
-import java.util.function.Function;
 
 public class Cookie implements Cloneable {
 
 	private final String name;
-	private final Function<Cookie, String> converter;
-
 	private String value;
 	private String comment;
 	private Date expiryDate;
@@ -37,14 +33,8 @@ public class Cookie implements Cloneable {
 	private Long maxAge;
 	private String sameSite;
 
-	public Cookie(@Nonnull String cookieName, @Nonnull Function<Cookie, String> cookieConverter) {
+	public Cookie(@Nonnull String cookieName) {
 		name = cookieName;
-		converter = cookieConverter;
-	}
-
-	@Nullable
-	public String format() {
-		return converter.apply(this);
 	}
 
 	@Nonnull
@@ -134,7 +124,7 @@ public class Cookie implements Cloneable {
 
 	@Override
 	public Cookie clone() {
-		Cookie clone = new Cookie(name, converter);
+		Cookie clone = new Cookie(name);
 		clone.value = value;
 		clone.comment = comment;
 		clone.expiryDate = expiryDate;

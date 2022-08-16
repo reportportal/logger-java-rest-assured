@@ -17,25 +17,15 @@
 package com.epam.reportportal.restassured.support;
 
 import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
-import java.util.function.Function;
 
 public class Header implements Cloneable {
 
 	private final String name;
 	private final String value;
-	private final Function<Header, String> converter;
 
-	public Header(@Nonnull String headerName, @Nonnull String headerValue,
-			@Nonnull Function<Header, String> headerConverter) {
+	public Header(@Nonnull String headerName, @Nonnull String headerValue) {
 		name = headerName;
 		value = headerValue;
-		converter = headerConverter;
-	}
-
-	@Nullable
-	public String format() {
-		return converter.apply(this);
 	}
 
 	@Nonnull
@@ -50,6 +40,6 @@ public class Header implements Cloneable {
 
 	@Override
 	public Header clone() {
-		return new Header(name, value, converter);
+		return new Header(name, value);
 	}
 }

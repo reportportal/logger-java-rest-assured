@@ -14,7 +14,9 @@
  * limitations under the License.
  */
 
-package com.epam.reportportal.restassured.support;
+package com.epam.reportportal.restassured.support.converters;
+
+import com.epam.reportportal.restassured.support.http.Cookie;
 
 import javax.annotation.Nullable;
 import java.text.SimpleDateFormat;

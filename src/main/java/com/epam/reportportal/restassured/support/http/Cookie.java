@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.epam.reportportal.restassured.support;
+package com.epam.reportportal.restassured.support.http;
 
 import javax.annotation.Nonnull;
 import java.util.Date;

@@ -19,6 +19,7 @@ package com.epam.reportportal.restassured;
 import com.epam.reportportal.listeners.ItemStatus;
 import com.epam.reportportal.listeners.LogLevel;
 import com.epam.reportportal.message.ReportPortalMessage;
+import com.epam.reportportal.restassured.support.Constants;
 import com.epam.reportportal.restassured.support.Converters;
 import com.epam.reportportal.service.Launch;
 import com.epam.reportportal.service.ReportPortal;
@@ -356,7 +357,7 @@ public class ReportPortalRestAssuredLoggingFilterTest {
 		List<String> logs = runFilterTextMessageCapture(requestSpecification, null);
 		assertThat(logs, hasSize(2)); // Request + Response
 		assertThat(logs.get(0), equalTo(EMPTY_REQUEST));
-		assertThat(logs.get(1), equalTo(ReportPortalRestAssuredLoggingFilter.NULL_RESPONSE));
+		assertThat(logs.get(1), equalTo(Constants.NULL_RESPONSE));
 	}
 
 	public static Iterable<Object> emptyMultipartData() {
@@ -434,8 +435,8 @@ public class ReportPortalRestAssuredLoggingFilterTest {
 		assertThat(logs.getRight(), hasSize(1));
 
 		assertThat(logs.getLeft().get(0), equalTo(EMPTY_REQUEST));
-		assertThat(logs.getMiddle().get(0), equalTo(ReportPortalRestAssuredLoggingFilter.NULL_RESPONSE));
-		assertThat(logs.getRight().get(0).getMessage(), equalTo(ReportPortalRestAssuredLoggingFilter.BODY_PART_TAG + "\n" + imageType));
+		assertThat(logs.getMiddle().get(0), equalTo(Constants.NULL_RESPONSE));
+		assertThat(logs.getRight().get(0).getMessage(), equalTo(Constants.BODY_PART_TAG + "\n" + imageType));
 		assertThat(logs.getRight().get(0).getData().getMediaType(), equalTo(imageType));
 		assertThat(logs.getRight().get(0).getData().read(), equalTo(image));
 	}
@@ -501,12 +502,12 @@ public class ReportPortalRestAssuredLoggingFilterTest {
 		assertThat(logs.getLeft().get(0), equalTo(EMPTY_REQUEST));
 
 		assertThat(logs.getMiddle().get(0),
-				equalTo(ReportPortalRestAssuredLoggingFilter.HEADERS_TAG + "\n" + HttpHeaders.CONTENT_TYPE + ": " + textType + "\n\n"
-						+ ReportPortalRestAssuredLoggingFilter.BODY_PART_TAG + "\n```\n" + message + "\n```")
+				equalTo(Constants.HEADERS_TAG + "\n" + HttpHeaders.CONTENT_TYPE + ": " + textType + "\n\n"
+						+ Constants.BODY_PART_TAG + "\n```\n" + message + "\n```")
 		);
-		assertThat(logs.getMiddle().get(1), equalTo(ReportPortalRestAssuredLoggingFilter.NULL_RESPONSE));
+		assertThat(logs.getMiddle().get(1), equalTo(Constants.NULL_RESPONSE));
 
-		assertThat(logs.getRight().get(0).getMessage(), equalTo(ReportPortalRestAssuredLoggingFilter.BODY_PART_TAG + "\n" + imageType));
+		assertThat(logs.getRight().get(0).getMessage(), equalTo(Constants.BODY_PART_TAG + "\n" + imageType));
 		assertThat(logs.getRight().get(0).getData().getMediaType(), equalTo(imageType));
 		assertThat(logs.getRight().get(0).getData().read(), equalTo(image));
 	}

@@ -14,19 +14,36 @@
  * limitations under the License.
  */
 
-package com.epam.reportportal.restassured.support;
+package com.epam.reportportal.restassured.support.http;
 
-import org.apache.http.entity.ContentType;
+import javax.annotation.Nonnull;
 
-import javax.annotation.Nullable;
+public class Header implements Cloneable {
 
-import static java.util.Optional.ofNullable;
+	private final String name;
+	private String value;
 
-public class HttpUtils {
+	public Header(@Nonnull String headerName, @Nonnull String headerValue) {
+		name = headerName;
+		value = headerValue;
+	}
 
-	public static String getMimeType(@Nullable String contentType) {
-		return ofNullable(contentType).filter(ct -> !ct.isEmpty())
-				.map(ct -> ContentType.parse(contentType).getMimeType())
-				.orElse(ContentType.APPLICATION_OCTET_STREAM.getMimeType());
+	@Nonnull
+	public String getName() {
+		return name;
+	}
+
+	@Nonnull
+	public String getValue() {
+		return value;
+	}
+
+	public void setValue(@Nonnull String value) {
+		this.value = value;
+	}
+
+	@Override
+	public Header clone() {
+		return new Header(name, value);
 	}
 }

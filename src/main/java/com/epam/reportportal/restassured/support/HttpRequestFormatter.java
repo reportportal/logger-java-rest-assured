@@ -16,23 +16,24 @@
 
 package com.epam.reportportal.restassured.support;
 
+import com.epam.reportportal.restassured.support.converters.DefaultCookieConverter;
+import com.epam.reportportal.restassured.support.converters.DefaultHttpHeaderConverter;
+import com.epam.reportportal.restassured.support.converters.DefaultUriConverter;
+import com.epam.reportportal.restassured.support.http.Cookie;
+import com.epam.reportportal.restassured.support.http.Header;
+import com.epam.reportportal.restassured.support.http.Part;
+
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import static com.epam.reportportal.restassured.support.Constants.*;
 import static java.util.Optional.of;
 import static java.util.Optional.ofNullable;
 
-public class HttpRequest {
-
-	public static final String LINE_DELIMITER = "\n";
-	public static final String REQUEST_TAG = "**>>> REQUEST**";
-	public static final String HEADERS_TAG = "**Headers**";
-
-	public static final String COOKIES_TAG = "**Cookies**";
-
+public class HttpRequestFormatter {
 	private final String method;
 	private final String uri;
 
@@ -46,23 +47,25 @@ public class HttpRequest {
 
 	private List<Cookie> cookies;
 
+	private String mimeType;
+
 	private BodyType type = BodyType.NONE;
 
 	private Object body;
 
-	public HttpRequest(@Nonnull String requestMethod, @Nonnull String requestUri) {
+	public HttpRequestFormatter(@Nonnull String requestMethod, @Nonnull String requestUri) {
 		method = requestMethod;
 		uri = requestUri;
 	}
 
 	@Nonnull
-	public String getRequestString() {
+	public String formatRequest() {
 		return REQUEST_TAG + LINE_DELIMITER + String.format("%s to %s", method, uriConverter.apply(uri))
 				+ LINE_DELIMITER;
 	}
 
 	@Nonnull
-	public String getHeadersString() {
+	public String formatHeaders() {
 		return of(headers.stream()
 				.map(headerConverter)
 				.filter(h -> h != null && !h.isEmpty())
@@ -73,7 +76,7 @@ public class HttpRequest {
 	}
 
 	@Nonnull
-	public String getCookiesString() {
+	public String formatCookies() {
 		return of(cookies.stream()
 				.map(cookieConverter)
 				.filter(c -> c != null && !c.isEmpty())
@@ -81,6 +84,22 @@ public class HttpRequest {
 						LINE_DELIMITER + COOKIES_TAG + LINE_DELIMITER,
 						LINE_DELIMITER
 				))).orElse("");
+	}
+
+	@Nonnull
+	public String formatHead() {
+		return formatRequest() + formatHeaders() + formatCookies();
+	}
+
+	@Nonnull
+	public String formatAsText() {
+		String prefix = formatHead();
+		String body = getTextBody();
+		if (body.isEmpty()) {
+			return prefix;
+		} else {
+			return prefix + LINE_DELIMITER + BODY_TAG + LINE_DELIMITER + body;
+		}
 	}
 
 	public void setUriConverter(@Nonnull Function<String, String> uriConverter) {
@@ -101,6 +120,14 @@ public class HttpRequest {
 
 	public void setCookies(@Nonnull List<Cookie> cookies) {
 		this.cookies = cookies;
+	}
+
+	public String getMimeType() {
+		return mimeType;
+	}
+
+	public void setMimeType(String mimeType) {
+		this.mimeType = mimeType;
 	}
 
 	public void setType(@Nonnull BodyType type) {
@@ -153,81 +180,6 @@ public class HttpRequest {
 		return null != type && BodyType.NONE != type;
 	}
 
-	public static class Part {
-		private final PartType type;
-		private final Object payload;
-
-		private String controlName;
-		private String mimeType;
-		private Map<String, String> headers;
-		private String charset;
-		private String fileName;
-
-		public Part(@Nonnull PartType type, @Nonnull Object payload) {
-			this.type = type;
-			this.payload = payload;
-		}
-
-		public String getTextPayload() {
-			if (PartType.TEXT == type) {
-				return (String) payload;
-			}
-			throw new ClassCastException("Cannot return text for payload type: " + type.name());
-		}
-
-		public byte[] getBinaryPayload() {
-			if (PartType.BINARY == type) {
-				return (byte[]) payload;
-			}
-			throw new ClassCastException("Cannot return binary data for payload type: " + type.name());
-		}
-
-		public String getControlName() {
-			return controlName;
-		}
-
-		public void setControlName(String controlName) {
-			this.controlName = controlName;
-		}
-
-		public String getMimeType() {
-			return mimeType;
-		}
-
-		public void setMimeType(String mimeType) {
-			this.mimeType = mimeType;
-		}
-
-		public Map<String, String> getHeaders() {
-			return headers;
-		}
-
-		public void setHeaders(Map<String, String> headers) {
-			this.headers = headers;
-		}
-
-		public String getCharset() {
-			return charset;
-		}
-
-		public void setCharset(String charset) {
-			this.charset = charset;
-		}
-
-		public String getFileName() {
-			return fileName;
-		}
-
-		public void setFileName(String fileName) {
-			this.fileName = fileName;
-		}
-	}
-
-	public enum PartType {
-		TEXT,
-		BINARY
-	}
-
 	public enum BodyType {
 		TEXT,
 		MULTIPART,
@@ -246,6 +198,7 @@ public class HttpRequest {
 		private Function<Cookie, String> cookieConverter;
 
 		private BodyType type;
+		private String mimeType;
 
 		private Object body;
 
@@ -299,22 +252,24 @@ public class HttpRequest {
 			return addCookie(name, null);
 		}
 
-		public Builder bodyText(String body) {
+		public Builder bodyText(String mimeType, String body) {
 			type = BodyType.TEXT;
+			this.mimeType = mimeType;
 			this.body = body;
 			return this;
 		}
 
-		public Builder bodyBytes(byte[] body) {
+		public Builder bodyBytes(String mimeType, byte[] body) {
 			type = BodyType.BINARY;
+			this.mimeType = mimeType;
 			this.body = body;
 			return this;
 		}
 
 		@SuppressWarnings("unchecked")
-		public Builder addBodyPart(HttpRequest.Part part) {
+		public Builder addBodyPart(Part part) {
 			if (body != null && type == BodyType.MULTIPART) {
-				((List<HttpRequest.Part>) body).add(part);
+				((List<Part>) body).add(part);
 			} else {
 				type = BodyType.MULTIPART;
 				body = new ArrayList<>(Collections.singleton(part));
@@ -322,15 +277,16 @@ public class HttpRequest {
 			return this;
 		}
 
-		public HttpRequest build() {
-			HttpRequest result = new HttpRequest(method, uri);
-			result.setUriConverter(ofNullable(uriConverter).orElse(Converters.DEFAULT_URI_CONVERTER));
+		public HttpRequestFormatter build() {
+			HttpRequestFormatter result = new HttpRequestFormatter(method, uri);
+			result.setUriConverter(ofNullable(uriConverter).orElse(DefaultUriConverter.INSTANCE));
 			result.setHeaderConverter(ofNullable(headerConverter).orElse(DefaultHttpHeaderConverter.INSTANCE));
 			result.setCookieConverter(ofNullable(cookieConverter).orElse(DefaultCookieConverter.INSTANCE));
 			result.setHeaders(headers);
 			result.setCookies(cookies);
 			if (body != null) {
 				result.setType(type);
+				result.setMimeType(mimeType);
 				result.setBody(body);
 			} else {
 				result.setType(BodyType.NONE);

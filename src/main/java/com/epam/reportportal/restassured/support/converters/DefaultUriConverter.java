@@ -14,22 +14,15 @@
  * limitations under the License.
  */
 
-package com.epam.reportportal.restassured.support;
+package com.epam.reportportal.restassured.support.converters;
 
-import javax.annotation.Nullable;
 import java.util.function.Function;
 
-import static java.util.Optional.ofNullable;
-
-public class DefaultHttpHeaderConverter implements Function<Header, String> {
-
-	public static final Function<Header, String> INSTANCE = new DefaultHttpHeaderConverter();
-
-	private DefaultHttpHeaderConverter() {
-	}
+public class DefaultUriConverter implements Function<String, String> {
+	public static final Function<String, String> INSTANCE = new DefaultUriConverter();
 
 	@Override
-	public @Nullable String apply(@Nullable Header header) {
-		return ofNullable(header).map(h -> h.getName() + ": " + h.getValue().replace("*", "\\*")).orElse(null);
+	public String apply(String s) {
+		return s;
 	}
 }

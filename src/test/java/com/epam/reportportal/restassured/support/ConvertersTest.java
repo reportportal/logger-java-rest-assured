@@ -16,14 +16,20 @@
 
 package com.epam.reportportal.restassured.support;
 
-import io.restassured.http.Cookie;
-import io.restassured.http.Header;
+import com.epam.reportportal.restassured.support.converters.SanitizingCookieConverter;
+import com.epam.reportportal.restassured.support.converters.SanitizingHttpHeaderConverter;
+import com.epam.reportportal.restassured.support.converters.SanitizingUriConverter;
+import com.epam.reportportal.restassured.support.http.Cookie;
+import com.epam.reportportal.restassured.support.http.Header;
+import com.epam.reportportal.restassured.support.prettiers.HtmlPrettier;
+import com.epam.reportportal.restassured.support.prettiers.JsonPrettier;
+import com.epam.reportportal.restassured.support.prettiers.Prettier;
+import com.epam.reportportal.restassured.support.prettiers.XmlPrettier;
 import org.apache.http.HttpHeaders;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
 import java.util.Arrays;
-import java.util.function.Function;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
@@ -31,27 +37,34 @@ import static org.hamcrest.Matchers.equalTo;
 public class ConvertersTest {
 
 	public static Iterable<Object[]> cookieCases() {
+		Cookie cookie1 = new Cookie("session_id");
+		cookie1.setValue("my_test_session_id");
+		cookie1.setComment("test comment");
+		cookie1.setDomain("example.com");
+		cookie1.setHttpOnly(true);
+		cookie1.setPath("/");
+
+		Cookie cookie2 = new Cookie("test_cookie");
+		cookie2.setValue("my_test_session_id");
+		cookie1.setPath("/");
+
 		return Arrays.asList(
-				new Object[] { new Cookie.Builder("session_id", "my_test_session_id").setComment("test comment")
-						.setDomain("example.com")
-						.setHttpOnly(true)
-						.setPath("/").build(), "session_id=" + Converters.REMOVED_TAG },
+				new Object[] { cookie1, "session_id: " + Constants.REMOVED_TAG },
 				new Object[] { null, null },
-				new Object[] { new Cookie.Builder("test_cookie", "my_test_session_id").setPath("/").build(),
-						"test_cookie=my_test_session_id;Path=/"}
+				new Object[] { cookie2, "test_cookie: my_test_session_id; Path=/" }
 		);
 	}
 
 	@ParameterizedTest
 	@MethodSource("cookieCases")
 	public void testSessionIdHeaderRemove(Cookie input, String expected) {
-		assertThat(Converters.COOKIE_SANITIZING_CONVERTER.apply(input), equalTo(expected));
+		assertThat(SanitizingCookieConverter.INSTANCE.apply(input), equalTo(expected));
 	}
 
 	public static Iterable<Object[]> headerCases() {
 		return Arrays.asList(
 				new Object[] { new Header(HttpHeaders.AUTHORIZATION, "Bearer test_token"),
-						HttpHeaders.AUTHORIZATION + ": " + Converters.REMOVED_TAG },
+						HttpHeaders.AUTHORIZATION + ": " + Constants.REMOVED_TAG },
 				new Object[] { null, null },
 				new Object[] { new Header(HttpHeaders.ACCEPT, "*/*"), HttpHeaders.ACCEPT + ": \\*/\\*" }
 		);
@@ -60,14 +73,14 @@ public class ConvertersTest {
 	@ParameterizedTest
 	@MethodSource("headerCases")
 	public void testAuthorizationHeaderRemove(Header input, String expected) {
-		assertThat(Converters.HEADER_SANITIZING_CONVERTER.apply(input), equalTo(expected));
+		assertThat(SanitizingHttpHeaderConverter.INSTANCE.apply(input), equalTo(expected));
 	}
 
 	public static Iterable<Object[]> uriCases() {
 		return Arrays.asList(
 				new Object[] { "://my-invalid-uri", "://my-invalid-uri" },
 				new Object[] { "https://test:password@example.com/my/api",
-						"https://test:" + Converters.REMOVED_TAG + "@example.com/my/api" },
+						"https://test:" + Constants.REMOVED_TAG + "@example.com/my/api" },
 				new Object[] { null, null },
 				new Object[] { "https://test@example.com/my/api", "https://test@example.com/my/api" }
 		);
@@ -76,32 +89,33 @@ public class ConvertersTest {
 	@ParameterizedTest
 	@MethodSource("uriCases")
 	public void testUriSanitizingConverter(String input, String expected) {
-		assertThat(Converters.URI_SANITIZING_CONVERTER.apply(input), equalTo(expected));
+		assertThat(SanitizingUriConverter.INSTANCE.apply(input), equalTo(expected));
 	}
 
 	public static Iterable<Object[]> prettierData() {
 		return Arrays.asList(
-				new Object[] { Converters.JSON_PRETTIER, "{\"object\": {\"key\": \"value\"}}",
+				new Object[] { JsonPrettier.INSTANCE, "{\"object\": {\"key\": \"value\"}}",
 						"{\n  \"object\" : {\n    \"key\" : \"value\"\n  }\n}" },
-				new Object[] { Converters.XML_PRETTIER, "<test><key><value>value</value></key></test>",
+				new Object[] { XmlPrettier.INSTANCE, "<test><key><value>value</value></key></test>",
 						"<test>\n  <key>\n    <value>value</value>\n  </key>\n</test>" },
-				new Object[] { Converters.HTML_PRETTIER, "<html><body><h1>hello world</h1></body></html>",
+				new Object[] { HtmlPrettier.INSTANCE, "<html><body><h1>hello world</h1></body></html>",
 						"<html>\n  <head></head>\n  <body>\n    <h1>hello world</h1>\n  </body>\n</html>" },
-				new Object[] { Converters.JSON_PRETTIER, "^$V\\B#$^", "^$V\\B#$^" },
-				new Object[] { Converters.XML_PRETTIER, "^$V\\B#$^", "^$V\\B#$^" },
-				new Object[] { Converters.HTML_PRETTIER, "^$V\\B#$\"^",
+				new Object[] { JsonPrettier.INSTANCE, "^$V\\B#$^", "^$V\\B#$^" },
+				new Object[] { XmlPrettier.INSTANCE, "^$V\\B#$^", "^$V\\B#$^" },
+				new Object[] { HtmlPrettier.INSTANCE, "^$V\\B#$\"^",
 						"<html>\n  <head></head>\n  <body>\n    ^$V\\B#$\"^\n  </body>\n</html>" },
-				new Object[] { Converters.HTML_PRETTIER, "</", "<html>\n  <head></head>\n  <body>\n    &lt;/\n  </body>\n</html>" },
-				new Object[] { Converters.HTML_PRETTIER, "", "<html>\n  <head></head>\n  <body></body>\n</html>" },
-				new Object[] { Converters.JSON_PRETTIER, null, null },
-				new Object[] { Converters.XML_PRETTIER, null, null },
-				new Object[] { Converters.HTML_PRETTIER, null, null }
+				new Object[] { HtmlPrettier.INSTANCE, "</",
+						"<html>\n  <head></head>\n  <body>\n    &lt;/\n  </body>\n</html>" },
+				new Object[] { HtmlPrettier.INSTANCE, "", "<html>\n  <head></head>\n  <body></body>\n</html>" },
+				new Object[] { JsonPrettier.INSTANCE, null, null },
+				new Object[] { XmlPrettier.INSTANCE, null, null },
+				new Object[] { HtmlPrettier.INSTANCE, null, null }
 		);
 	}
 
 	@ParameterizedTest
 	@MethodSource("prettierData")
-	public void test_prettiers(Function<String, String> prettier, String input, String expected) {
+	public void test_prettiers(Prettier prettier, String input, String expected) {
 		assertThat(prettier.apply(input), equalTo(expected));
 	}
 }

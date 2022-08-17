@@ -14,19 +14,24 @@
  * limitations under the License.
  */
 
-package com.epam.reportportal.restassured.support;
+package com.epam.reportportal.restassured.support.converters;
 
-import org.apache.http.entity.ContentType;
+import com.epam.reportportal.restassured.support.http.Header;
 
 import javax.annotation.Nullable;
+import java.util.function.Function;
 
 import static java.util.Optional.ofNullable;
 
-public class HttpUtils {
+public class DefaultHttpHeaderConverter implements Function<Header, String> {
 
-	public static String getMimeType(@Nullable String contentType) {
-		return ofNullable(contentType).filter(ct -> !ct.isEmpty())
-				.map(ct -> ContentType.parse(contentType).getMimeType())
-				.orElse(ContentType.APPLICATION_OCTET_STREAM.getMimeType());
+	public static final Function<Header, String> INSTANCE = new DefaultHttpHeaderConverter();
+
+	private DefaultHttpHeaderConverter() {
+	}
+
+	@Override
+	public @Nullable String apply(@Nullable Header header) {
+		return ofNullable(header).map(h -> h.getName() + ": " + h.getValue().replace("*", "\\*")).orElse(null);
 	}
 }

@@ -14,32 +14,9 @@
  * limitations under the License.
  */
 
-package com.epam.reportportal.restassured.support;
+package com.epam.reportportal.restassured.support.prettiers;
 
-import javax.annotation.Nonnull;
+import java.util.function.Function;
 
-public class Header implements Cloneable {
-
-	private final String name;
-	private final String value;
-
-	public Header(@Nonnull String headerName, @Nonnull String headerValue) {
-		name = headerName;
-		value = headerValue;
-	}
-
-	@Nonnull
-	public String getName() {
-		return name;
-	}
-
-	@Nonnull
-	public String getValue() {
-		return value;
-	}
-
-	@Override
-	public Header clone() {
-		return new Header(name, value);
-	}
+public interface Prettier extends Function<String, String> {
 }

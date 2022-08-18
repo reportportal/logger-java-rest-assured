@@ -20,7 +20,8 @@ import com.epam.reportportal.listeners.ItemStatus;
 import com.epam.reportportal.listeners.LogLevel;
 import com.epam.reportportal.message.ReportPortalMessage;
 import com.epam.reportportal.restassured.support.Constants;
-import com.epam.reportportal.restassured.support.Converters;
+import com.epam.reportportal.restassured.support.prettiers.JsonPrettier;
+import com.epam.reportportal.restassured.support.prettiers.XmlPrettier;
 import com.epam.reportportal.service.Launch;
 import com.epam.reportportal.service.ReportPortal;
 import com.epam.reportportal.service.step.StepReporter;
@@ -107,9 +108,9 @@ public class ReportPortalRestAssuredLoggingFilterTest {
 
 	public static Iterable<Object[]> requestData() {
 		return Arrays.asList(new Object[] { JSON_TYPE, "{\"object\": {\"key\": \"value\"}}", "{\"object\": {\"key\": \"value\"}}",
-						Converters.JSON_PRETTIER, null, null },
+						JsonPrettier.INSTANCE, null, null },
 				new Object[] { "application/xml", "<test><key><value>value</value></key></test>",
-						"<test><key><value>value</value></key></test>", Converters.XML_PRETTIER, null, null }
+						"<test><key><value>value</value></key></test>", XmlPrettier.INSTANCE, null, null }
 		);
 	}
 

@@ -19,9 +19,9 @@ package com.epam.reportportal.restassured.support;
 import com.epam.reportportal.restassured.support.converters.DefaultCookieConverter;
 import com.epam.reportportal.restassured.support.converters.DefaultHttpHeaderConverter;
 import com.epam.reportportal.restassured.support.converters.DefaultUriConverter;
+import com.epam.reportportal.restassured.support.http.BodyType;
 import com.epam.reportportal.restassured.support.http.Cookie;
 import com.epam.reportportal.restassured.support.http.Header;
-import com.epam.reportportal.restassured.support.http.Part;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -146,7 +146,6 @@ public class HttpRequestFormatter {
 	}
 
 	public String getTextBody() {
-		Objects.requireNonNull(body);
 		if (BodyType.TEXT == type) {
 			return (String) body;
 		}
@@ -155,7 +154,6 @@ public class HttpRequestFormatter {
 	}
 
 	public byte[] getBinaryBody() {
-		Objects.requireNonNull(body);
 		if (BodyType.BINARY == type) {
 			return (byte[]) body;
 		}
@@ -163,10 +161,10 @@ public class HttpRequestFormatter {
 	}
 
 	@SuppressWarnings("unchecked")
-	public List<Part> getMultipartBody() {
+	public List<HttpPartFormatter> getMultipartBody() {
 		Objects.requireNonNull(body);
 		if (BodyType.MULTIPART == type) {
-			return (List<Part>) body;
+			return (List<HttpPartFormatter>) body;
 		}
 		throw new ClassCastException("Cannot return multipart body for body type: " + type.name());
 	}
@@ -180,12 +178,6 @@ public class HttpRequestFormatter {
 		return null != type && BodyType.NONE != type;
 	}
 
-	public enum BodyType {
-		TEXT,
-		MULTIPART,
-		BINARY,
-		NONE
-	}
 
 	public static class Builder {
 		private final String method;
@@ -252,24 +244,24 @@ public class HttpRequestFormatter {
 			return addCookie(name, null);
 		}
 
-		public Builder bodyText(String mimeType, String body) {
+		public Builder bodyText(String mimeType, String payload) {
 			type = BodyType.TEXT;
 			this.mimeType = mimeType;
-			this.body = body;
+			body = payload;
 			return this;
 		}
 
-		public Builder bodyBytes(String mimeType, byte[] body) {
+		public Builder bodyBytes(String mimeType, byte[] payload) {
 			type = BodyType.BINARY;
 			this.mimeType = mimeType;
-			this.body = body;
+			body = payload;
 			return this;
 		}
 
 		@SuppressWarnings("unchecked")
-		public Builder addBodyPart(Part part) {
+		public Builder addBodyPart(HttpPartFormatter part) {
 			if (body != null && type == BodyType.MULTIPART) {
-				((List<Part>) body).add(part);
+				((List<HttpPartFormatter>) body).add(part);
 			} else {
 				type = BodyType.MULTIPART;
 				body = new ArrayList<>(Collections.singleton(part));

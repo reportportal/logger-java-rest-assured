@@ -20,10 +20,9 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 public class JsonPrettier implements Prettier {
+	private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
 	public static final JsonPrettier INSTANCE = new JsonPrettier();
-
-	private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
 	private final ObjectMapper mapper;
 

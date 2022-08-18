@@ -19,19 +19,19 @@ package com.epam.reportportal.restassured;
 import com.epam.reportportal.listeners.ItemStatus;
 import com.epam.reportportal.listeners.LogLevel;
 import com.epam.reportportal.message.ReportPortalMessage;
-import com.epam.reportportal.message.TypeAwareByteSource;
 import com.epam.reportportal.restassured.support.HttpEntityFactory;
+import com.epam.reportportal.restassured.support.HttpPartFormatter;
 import com.epam.reportportal.restassured.support.HttpRequestFormatter;
+import com.epam.reportportal.restassured.support.HttpResponseFormatter;
 import com.epam.reportportal.restassured.support.converters.DefaultCookieConverter;
 import com.epam.reportportal.restassured.support.converters.DefaultHttpHeaderConverter;
 import com.epam.reportportal.restassured.support.converters.DefaultUriConverter;
+import com.epam.reportportal.restassured.support.http.BodyType;
 import com.epam.reportportal.restassured.support.http.Cookie;
 import com.epam.reportportal.restassured.support.http.Header;
-import com.epam.reportportal.restassured.support.http.Part;
 import com.epam.reportportal.service.Launch;
 import com.epam.reportportal.service.ReportPortal;
 import com.epam.reportportal.service.step.StepReporter;
-import com.epam.reportportal.utils.files.Utils;
 import com.google.common.io.ByteSource;
 import io.restassured.filter.FilterContext;
 import io.restassured.filter.OrderedFilter;
@@ -42,14 +42,12 @@ import io.restassured.specification.FilterableResponseSpecification;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
-import java.io.File;
-import java.io.IOException;
 import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import static com.epam.reportportal.restassured.support.Constants.*;
-import static com.epam.reportportal.restassured.support.HttpUtils.*;
+import static com.epam.reportportal.restassured.support.HttpUtils.getMimeType;
 import static java.util.Optional.ofNullable;
 
 /**
@@ -198,8 +196,8 @@ public class ReportPortalRestAssuredLoggingFilter implements OrderedFilter {
 		return result.toString();
 	}
 
-	private String formatTextEntity(@Nonnull String entityName, @Nullable List<Header> headers, @Nullable List<Cookie> cookies,
-			@Nullable String body, @Nonnull String contentType) {
+	private String formatTextEntity(@Nonnull String entityName, @Nullable List<Header> headers,
+			@Nullable List<Cookie> cookies, @Nullable String body, @Nonnull String contentType) {
 		String prefix = formatTextHeader(headers, cookies);
 		String indent = prefix.isEmpty() ? entityName : "\n\n" + entityName;
 		return ofNullable(body).map(b -> prefix + indent + "\n```\n" + (contentPrettiers.containsKey(contentType) ?
@@ -226,35 +224,15 @@ public class ReportPortalRestAssuredLoggingFilter implements OrderedFilter {
 		}
 
 		Date myDate = currentDate;
-		for(Part part : formatter.getMultipartBody()) {
+		for (HttpPartFormatter part : formatter.getMultipartBody()) {
 			myDate = new Date(myDate.getTime() + 1);
-			Part.PartType partType = part.getType();
-			switch (partType){
+			HttpPartFormatter.PartType partType = part.getType();
+			switch (partType) {
 				case TEXT:
 					ReportPortal.emitLog(part.formatAsText(), logLevel, myDate);
 					break;
 				case BINARY:
-					String prefix = part.formatHeaders();
-					byte[] body = part.getBinaryPayload();
-					String logText = BODY_PART_TAG + "\n";
-					String entry = prefix.isEmpty() ? logText : prefix + "\n\n" + logText;
-					if (body != null) {
-						if (body instanceof File) {
-							try {
-								TypeAwareByteSource file = Utils.getFile((File) body);
-								attachAsBinary(entry + file.getMediaType(), file.read(), file.getMediaType());
-							} catch (IOException exc) {
-								ReportPortal.emitLog(entry + "Unable to read file: " + exc.getMessage(),
-										"ERROR",
-										currentDate
-								);
-							}
-						} else {
-							attachAsBinary(entry + partMimeType, (byte[]) body, partMimeType);
-						}
-					} else {
-						ReportPortal.emitLog(entry + "NULL", logLevel, currentDate);
-					}
+					attachAsBinary(part.formatForBinaryDataPrefix(), part.getBinaryPayload(), part.getMimeType());
 			}
 		}
 	}
@@ -262,7 +240,7 @@ public class ReportPortalRestAssuredLoggingFilter implements OrderedFilter {
 	private void emitLog(@Nonnull FilterableRequestSpecification request) {
 		HttpRequestFormatter formatter = HttpEntityFactory.createHttpRequestFormatter(request);
 
-		HttpRequestFormatter.BodyType type = formatter.getType();
+		BodyType type = formatter.getType();
 		switch (type) {
 			case NONE:
 				ReportPortal.emitLog(formatter.formatHead(), logLevel, Calendar.getInstance().getTime());
@@ -287,24 +265,24 @@ public class ReportPortalRestAssuredLoggingFilter implements OrderedFilter {
 			return;
 		}
 
-		String logText = RESPONSE_TAG + "\n" + response.getStatusLine();
-		String mimeType = getMimeType(response.getContentType());
-		if (TEXT_TYPES.contains(mimeType)) {
-			String body = formatTextEntity(BODY_TAG,
-					response.getHeaders(),
-					response.getDetailedCookies(),
-					ofNullable(response.getBody()).map(ResponseBodyData::asString).orElse(null),
-					mimeType
-			);
-			String entry = body.isEmpty() ? logText : logText + "\n\n" + body;
-			ReportPortal.emitLog(entry, logLevel, Calendar.getInstance().getTime());
-		} else {
-			String prefix = formatTextHeader(response.getHeaders(), response.getDetailedCookies());
-			String entry = prefix.isEmpty() ? logText : logText + "\n\n" + prefix;
-			attachAsBinary(entry,
-					ofNullable(response.getBody()).map(ResponseBodyData::asByteArray).orElse(null),
-					mimeType
-			);
+		HttpResponseFormatter formatter = HttpEntityFactory.createHttpResponseFormatter(response);
+		BodyType type = formatter.getType();
+		switch (type) {
+			case NONE:
+				ReportPortal.emitLog(formatter.formatHead(), logLevel, Calendar.getInstance().getTime());
+				break;
+			case TEXT:
+				ReportPortal.emitLog(formatter.formatAsText(), logLevel, Calendar.getInstance().getTime());
+				break;
+			case BINARY:
+				attachAsBinary(formatter.formatHead(), formatter.getBinaryBody(), formatter.getMimeType());
+				break;
+			default:
+				ReportPortal.emitLog(
+						"Unknown response type: " + type.name(),
+						"ERROR",
+						Calendar.getInstance().getTime()
+				);
 		}
 	}
 

@@ -46,10 +46,10 @@ public class ConvertersTest {
 
 		Cookie cookie2 = new Cookie("test_cookie");
 		cookie2.setValue("my_test_session_id");
-		cookie1.setPath("/");
+		cookie2.setPath("/");
 
 		return Arrays.asList(
-				new Object[] { cookie1, "session_id: " + Constants.REMOVED_TAG },
+				new Object[] { cookie1, "session_id: " + Constants.REMOVED_TAG + "; Comment=test comment; Path=/; Domain=example.com; HttpOnly=true" },
 				new Object[] { null, null },
 				new Object[] { cookie2, "test_cookie: my_test_session_id; Path=/" }
 		);

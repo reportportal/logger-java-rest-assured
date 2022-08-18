@@ -32,16 +32,14 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class XmlPrettier implements Prettier {
-
-	public static final XmlPrettier INSTANCE = new XmlPrettier();
-
 	private static final int DEFAULT_INDENT = 2;
-
 	private static final Map<String, String> DEFAULT_OUTPUT_PROPERTIES = new HashMap<String, String>() {{
 		put(OutputKeys.ENCODING, "UTF-8");
 		put(OutputKeys.OMIT_XML_DECLARATION, "yes");
 		put(OutputKeys.INDENT, "yes");
 	}};
+
+	public static final XmlPrettier INSTANCE = new XmlPrettier();
 
 	private final ThreadLocal<Transformer> threadLocal;
 

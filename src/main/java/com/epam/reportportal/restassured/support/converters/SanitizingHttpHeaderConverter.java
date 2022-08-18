@@ -29,11 +29,10 @@ import static com.epam.reportportal.restassured.support.Constants.REMOVED_TAG;
 import static java.util.Optional.ofNullable;
 
 public class SanitizingHttpHeaderConverter implements Function<Header, String> {
-
-	public static final Function<Header, String> INSTANCE = new SanitizingHttpHeaderConverter();
-
 	public static final Set<String> SENSITIVE_HEADERS = Collections.unmodifiableSet(new HashSet<>(Collections.singletonList(
 			HttpHeaders.AUTHORIZATION)));
+
+	public static final Function<Header, String> INSTANCE = new SanitizingHttpHeaderConverter();
 
 	private final Set<String> sanitizeSet;
 

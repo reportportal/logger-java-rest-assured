@@ -20,10 +20,9 @@ import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 
 public class HtmlPrettier implements Prettier {
+	private static final Document.OutputSettings OUTPUT_SETTINGS = new Document.OutputSettings().indentAmount(2);
 
 	public static final HtmlPrettier INSTANCE = new HtmlPrettier();
-
-	private static final Document.OutputSettings OUTPUT_SETTINGS = new Document.OutputSettings().indentAmount(2);
 
 	private final Document.OutputSettings settings;
 

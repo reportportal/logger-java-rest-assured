@@ -26,11 +26,11 @@ import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.function.Function;
-import java.util.stream.Collectors;
 
-import static com.epam.reportportal.restassured.support.Constants.*;
-import static java.util.Optional.of;
+import static com.epam.reportportal.restassured.support.Constants.BODY_PART_TAG;
+import static com.epam.reportportal.restassured.support.Constants.LINE_DELIMITER;
 import static java.util.Optional.ofNullable;
 
 public class HttpPartFormatter {
@@ -43,6 +43,7 @@ public class HttpPartFormatter {
 	private String fileName;
 
 	private Function<Header, String> headerConverter;
+	private Map<String, Function<String, String>> prettiers;
 
 	public HttpPartFormatter(@Nonnull PartType type, @Nonnull String mimeType, @Nonnull Object payload) {
 		this.type = type;
@@ -52,13 +53,7 @@ public class HttpPartFormatter {
 
 	@Nonnull
 	public String formatHeaders() {
-		return of(headers.stream()
-				.map(headerConverter)
-				.filter(h -> h != null && !h.isEmpty())
-				.collect(Collectors.joining(LINE_DELIMITER,
-						LINE_DELIMITER + HEADERS_TAG + LINE_DELIMITER,
-						LINE_DELIMITER
-				))).orElse("");
+		return HttpFormatUtils.formatHeaders(headers, headerConverter);
 	}
 
 	public String getTextPayload() {
@@ -76,13 +71,7 @@ public class HttpPartFormatter {
 	}
 
 	public String formatAsText() {
-		String prefix = formatHeaders();
-		String body = getTextPayload();
-		if (body.isEmpty()) {
-			return prefix;
-		} else {
-			return prefix + LINE_DELIMITER + BODY_PART_TAG + LINE_DELIMITER + body;
-		}
+		return HttpFormatUtils.formatText(formatHeaders(), getTextPayload(), BODY_PART_TAG, prettiers, mimeType);
 	}
 
 	public String formatForBinaryDataPrefix() {
@@ -139,6 +128,10 @@ public class HttpPartFormatter {
 		this.headerConverter = headerConverter;
 	}
 
+	public void setPrettiers(Map<String, Function<String, String>> prettiers) {
+		this.prettiers = prettiers;
+	}
+
 	public enum PartType {
 		TEXT,
 		BINARY
@@ -155,6 +148,7 @@ public class HttpPartFormatter {
 		private String fileName;
 
 		private Function<Header, String> headerConverter;
+		private Map<String, Function<String, String>> prettiers;
 
 		public Builder(@Nonnull PartType partType, @Nonnull File body) throws IOException {
 			type = partType;
@@ -199,6 +193,11 @@ public class HttpPartFormatter {
 			return this;
 		}
 
+		public Builder prettiers(Map<String, Function<String, String>> formatPrettiers) {
+			this.prettiers = formatPrettiers;
+			return this;
+		}
+
 		public HttpPartFormatter build() {
 			HttpPartFormatter formatter = new HttpPartFormatter(type, mimeType, payload);
 			formatter.setControlName(controlName);
@@ -206,6 +205,7 @@ public class HttpPartFormatter {
 			formatter.setCharset(charset);
 			formatter.setFileName(fileName);
 			formatter.setHeaderConverter(ofNullable(headerConverter).orElse(DefaultHttpHeaderConverter.INSTANCE));
+			formatter.setPrettiers(ofNullable(prettiers).orElse(Constants.DEFAULT_PRETTIERS));
 			return formatter;
 		}
 	}

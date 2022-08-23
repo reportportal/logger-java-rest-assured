@@ -27,10 +27,9 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.util.*;
 import java.util.function.Function;
-import java.util.stream.Collectors;
 
 import static com.epam.reportportal.restassured.support.Constants.*;
-import static java.util.Optional.of;
+import static com.epam.reportportal.restassured.support.HttpFormatUtils.joinParts;
 import static java.util.Optional.ofNullable;
 
 public class HttpRequestFormatter {
@@ -38,17 +37,14 @@ public class HttpRequestFormatter {
 	private final String uri;
 
 	private Function<String, String> uriConverter;
-
 	private Function<Header, String> headerConverter;
-
 	private Function<Cookie, String> cookieConverter;
+	private Map<String, Function<String, String>> prettiers;
 
 	private List<Header> headers;
-
 	private List<Cookie> cookies;
 
 	private String mimeType;
-
 	private BodyType type = BodyType.NONE;
 
 	private Object body;
@@ -60,46 +56,27 @@ public class HttpRequestFormatter {
 
 	@Nonnull
 	public String formatRequest() {
-		return REQUEST_TAG + LINE_DELIMITER + String.format("%s to %s", method, uriConverter.apply(uri))
-				+ LINE_DELIMITER;
+		return REQUEST_TAG + LINE_DELIMITER + String.format("%s to %s", method, uriConverter.apply(uri));
 	}
 
 	@Nonnull
 	public String formatHeaders() {
-		return of(headers.stream()
-				.map(headerConverter)
-				.filter(h -> h != null && !h.isEmpty())
-				.collect(Collectors.joining(LINE_DELIMITER,
-						LINE_DELIMITER + HEADERS_TAG + LINE_DELIMITER,
-						LINE_DELIMITER
-				))).orElse("");
+		return HttpFormatUtils.formatHeaders(headers, headerConverter);
 	}
 
 	@Nonnull
 	public String formatCookies() {
-		return of(cookies.stream()
-				.map(cookieConverter)
-				.filter(c -> c != null && !c.isEmpty())
-				.collect(Collectors.joining(LINE_DELIMITER,
-						LINE_DELIMITER + COOKIES_TAG + LINE_DELIMITER,
-						LINE_DELIMITER
-				))).orElse("");
+		return HttpFormatUtils.formatCookies(cookies, cookieConverter);
 	}
 
 	@Nonnull
 	public String formatHead() {
-		return formatRequest() + formatHeaders() + formatCookies();
+		return joinParts(LINE_DELIMITER + LINE_DELIMITER, formatRequest(), formatHeaders(), formatCookies());
 	}
 
 	@Nonnull
 	public String formatAsText() {
-		String prefix = formatHead();
-		String body = getTextBody();
-		if (body.isEmpty()) {
-			return prefix;
-		} else {
-			return prefix + LINE_DELIMITER + BODY_TAG + LINE_DELIMITER + body;
-		}
+		return HttpFormatUtils.formatText(formatHead(), getTextBody(), BODY_TAG, prettiers, mimeType);
 	}
 
 	public void setUriConverter(@Nonnull Function<String, String> uriConverter) {
@@ -169,15 +146,9 @@ public class HttpRequestFormatter {
 		throw new ClassCastException("Cannot return multipart body for body type: " + type.name());
 	}
 
-	@Nullable
-	public <T> T getBody(Class<T> type) {
-		return type.cast(body);
+	public void setPrettiers(Map<String, Function<String, String>> prettiers) {
+		this.prettiers = prettiers;
 	}
-
-	public boolean hasBody() {
-		return null != type && BodyType.NONE != type;
-	}
-
 
 	public static class Builder {
 		private final String method;
@@ -193,6 +164,8 @@ public class HttpRequestFormatter {
 		private String mimeType;
 
 		private Object body;
+
+		private Map<String, Function<String, String>> prettiers;
 
 		public Builder(@Nonnull String requestMethod, @Nonnull String requestUri) {
 			method = requestMethod;
@@ -215,24 +188,24 @@ public class HttpRequestFormatter {
 		}
 
 		public Builder addHeader(String name, String value) {
-			headers.add(new Header(name, value));
+			headers.add(HttpFormatUtils.toHeader(name, value));
 			return this;
 		}
 
 		public Builder addCookie(String name, String value, String comment, String path, String domain, Long maxAge,
 				Boolean secured, Boolean httpOnly, Date expiryDate, Integer version, String sameSite) {
-			Cookie cookie = new Cookie(name);
-			cookie.setValue(value);
-			cookie.setComment(comment);
-			cookie.setPath(path);
-			cookie.setDomain(domain);
-			cookie.setMaxAge(maxAge);
-			cookie.setSecured(secured);
-			cookie.setHttpOnly(httpOnly);
-			cookie.setExpiryDate(expiryDate);
-			cookie.setVersion(version);
-			cookie.setSameSite(sameSite);
-			cookies.add(cookie);
+			cookies.add(HttpFormatUtils.toCookie(name,
+					value,
+					comment,
+					path,
+					domain,
+					maxAge,
+					secured,
+					httpOnly,
+					expiryDate,
+					version,
+					sameSite
+			));
 			return this;
 		}
 
@@ -269,11 +242,17 @@ public class HttpRequestFormatter {
 			return this;
 		}
 
+		public Builder prettiers(Map<String, Function<String, String>> formatPrettiers) {
+			this.prettiers = formatPrettiers;
+			return this;
+		}
+
 		public HttpRequestFormatter build() {
 			HttpRequestFormatter result = new HttpRequestFormatter(method, uri);
 			result.setUriConverter(ofNullable(uriConverter).orElse(DefaultUriConverter.INSTANCE));
 			result.setHeaderConverter(ofNullable(headerConverter).orElse(DefaultHttpHeaderConverter.INSTANCE));
 			result.setCookieConverter(ofNullable(cookieConverter).orElse(DefaultCookieConverter.INSTANCE));
+			result.setPrettiers(ofNullable(prettiers).orElse(Constants.DEFAULT_PRETTIERS));
 			result.setHeaders(headers);
 			result.setCookies(cookies);
 			if (body != null) {

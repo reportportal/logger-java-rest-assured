@@ -36,7 +36,6 @@ import com.google.common.io.ByteSource;
 import io.restassured.filter.FilterContext;
 import io.restassured.filter.OrderedFilter;
 import io.restassured.response.Response;
-import io.restassured.response.ResponseBodyData;
 import io.restassured.specification.FilterableRequestSpecification;
 import io.restassured.specification.FilterableResponseSpecification;
 
@@ -44,10 +43,8 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.util.*;
 import java.util.function.Function;
-import java.util.stream.Collectors;
 
 import static com.epam.reportportal.restassured.support.Constants.*;
-import static com.epam.reportportal.restassured.support.HttpUtils.getMimeType;
 import static java.util.Optional.ofNullable;
 
 /**
@@ -68,36 +65,37 @@ public class ReportPortalRestAssuredLoggingFilter implements OrderedFilter {
 	private final String logLevel;
 
 	private final Function<Header, String> headerConverter;
+	private final Function<Header, String> partHeaderConverter;
 	private final Function<Cookie, String> cookieConverter;
 	private final Function<String, String> uriConverter;
-
-	@Nonnull
-	private Set<String> textContentTypes = TEXT_TYPES;
-	@Nonnull
-	private Set<String> multipartContentTypes = MULTIPART_TYPES;
-	@Nonnull
 	private Map<String, Function<String, String>> contentPrettiers = DEFAULT_PRETTIERS;
+
+	private Set<String> textContentTypes = TEXT_TYPES;
+	private Set<String> multipartContentTypes = MULTIPART_TYPES;
 
 	/**
 	 * Create an ordered REST Assured filter with the specific log level and header converter.
 	 *
-	 * @param filterOrder           if you have different filters which modify requests on fly this parameter allows you to control the
-	 *                              order when Report Portal logger will be called, and therefore log or don't log some data.
-	 * @param defaultLogLevel       log leve on which REST Assured requests/responses will appear on Report Portal
-	 * @param headerConvertFunction if you want to preprocess your HTTP Headers before they appear on Report Portal provide this custom
-	 *                              function for the class, default function formats it like that:
-	 *                              <code>header.getName() + ": " + header.getValue()</code>
-	 * @param cookieConvertFunction the same as 'headerConvertFunction' param but for Cookies, default function formats Cookies with
-	 *                              <code>toString</code> method
-	 * @param uriConverterFunction  the same as 'headerConvertFunction' param but for URI, default function returns URI "as is"
+	 * @param filterOrder               if you have different filters which modify requests on fly this parameter allows you to control the
+	 *                                  order when Report Portal logger will be called, and therefore log or don't log some data.
+	 * @param defaultLogLevel           log leve on which REST Assured requests/responses will appear on Report Portal
+	 * @param headerConvertFunction     if you want to preprocess your HTTP Headers before they appear on Report Portal provide this custom
+	 *                                  function for the class, default function formats it like that:
+	 *                                  <code>header.getName() + ": " + header.getValue()</code>
+	 * @param partHeaderConvertFunction the same as fot HTTP Headers, but for parts in Multipart request
+	 * @param cookieConvertFunction     the same as 'headerConvertFunction' param but for Cookies, default function formats Cookies with
+	 *                                  <code>toString</code> method
+	 * @param uriConverterFunction      the same as 'headerConvertFunction' param but for URI, default function returns URI "as is"
 	 */
 	public ReportPortalRestAssuredLoggingFilter(int filterOrder, @Nonnull LogLevel defaultLogLevel,
 			@Nullable Function<Header, String> headerConvertFunction,
+			@Nullable Function<Header, String> partHeaderConvertFunction,
 			@Nullable Function<Cookie, String> cookieConvertFunction,
 			@Nullable Function<String, String> uriConverterFunction) {
 		order = filterOrder;
 		logLevel = defaultLogLevel.name();
 		headerConverter = headerConvertFunction;
+		partHeaderConverter = partHeaderConvertFunction;
 		cookieConverter = cookieConvertFunction;
 		uriConverter = uriConverterFunction;
 	}
@@ -105,21 +103,24 @@ public class ReportPortalRestAssuredLoggingFilter implements OrderedFilter {
 	/**
 	 * Create an ordered REST Assured filter with the specific log level and header converter.
 	 *
-	 * @param filterOrder           if you have different filters which modify requests on fly this parameter allows you to control the
-	 *                              order when Report Portal logger will be called, and therefore log or don't log some data.
-	 * @param defaultLogLevel       log leve on which REST Assured requests/responses will appear on Report Portal
-	 * @param headerConvertFunction if you want to preprocess your HTTP Headers before they appear on Report Portal provide this custom
-	 *                              function for the class, default function formats it like that:
-	 *                              <code>header.getName() + ": " + header.getValue()</code>
-	 * @param cookieConvertFunction the same as 'headerConvertFunction' param but for Cookies, default function formats Cookies with
-	 *                              <code>toString</code> method
+	 * @param filterOrder               if you have different filters which modify requests on fly this parameter allows you to control the
+	 *                                  order when Report Portal logger will be called, and therefore log or don't log some data.
+	 * @param defaultLogLevel           log leve on which REST Assured requests/responses will appear on Report Portal
+	 * @param headerConvertFunction     if you want to preprocess your HTTP Headers before they appear on Report Portal provide this custom
+	 *                                  function for the class, default function formats it like that:
+	 *                                  <code>header.getName() + ": " + header.getValue()</code>
+	 * @param partHeaderConvertFunction the same as fot HTTP Headers, but for parts in Multipart request
+	 * @param cookieConvertFunction     the same as 'headerConvertFunction' param but for Cookies, default function formats Cookies with
+	 *                                  <code>toString</code> method
 	 */
 	public ReportPortalRestAssuredLoggingFilter(int filterOrder, @Nonnull LogLevel defaultLogLevel,
 			@Nullable Function<Header, String> headerConvertFunction,
+			@Nullable Function<Header, String> partHeaderConvertFunction,
 			@Nullable Function<Cookie, String> cookieConvertFunction) {
 		this(filterOrder,
 				defaultLogLevel,
 				headerConvertFunction,
+				partHeaderConvertFunction,
 				cookieConvertFunction,
 				DefaultUriConverter.INSTANCE
 		);
@@ -128,16 +129,23 @@ public class ReportPortalRestAssuredLoggingFilter implements OrderedFilter {
 	/**
 	 * Create an ordered REST Assured filter with the specific log level and header converter.
 	 *
-	 * @param filterOrder           if you have different filters which modify requests on fly this parameter allows you to control the
-	 *                              order when Report Portal logger will be called, and therefore log or don't log some data.
-	 * @param defaultLogLevel       log leve on which REST Assured requests/responses will appear on Report Portal
-	 * @param headerConvertFunction if you want to preprocess your HTTP Headers before they appear on Report Portal provide this custom
-	 *                              function for the class, default function formats it like that:
-	 *                              <code>header.getName() + ": " + header.getValue()</code>
+	 * @param filterOrder               if you have different filters which modify requests on fly this parameter allows you to control the
+	 *                                  order when Report Portal logger will be called, and therefore log or don't log some data.
+	 * @param defaultLogLevel           log leve on which REST Assured requests/responses will appear on Report Portal
+	 * @param headerConvertFunction     if you want to preprocess your HTTP Headers before they appear on Report Portal provide this custom
+	 *                                  function for the class, default function formats it like that:
+	 *                                  <code>header.getName() + ": " + header.getValue()</code>
+	 * @param partHeaderConvertFunction the same as fot HTTP Headers, but for parts in Multipart request
 	 */
 	public ReportPortalRestAssuredLoggingFilter(int filterOrder, @Nonnull LogLevel defaultLogLevel,
-			@Nullable Function<Header, String> headerConvertFunction) {
-		this(filterOrder, defaultLogLevel, headerConvertFunction, DefaultCookieConverter.INSTANCE);
+			@Nullable Function<Header, String> headerConvertFunction,
+			@Nullable Function<Header, String> partHeaderConvertFunction) {
+		this(filterOrder,
+				defaultLogLevel,
+				headerConvertFunction,
+				partHeaderConvertFunction,
+				DefaultCookieConverter.INSTANCE
+		);
 	}
 
 	/**
@@ -148,61 +156,12 @@ public class ReportPortalRestAssuredLoggingFilter implements OrderedFilter {
 	 * @param defaultLogLevel log leve on which REST Assured requests/responses will appear on Report Portal
 	 */
 	public ReportPortalRestAssuredLoggingFilter(int filterOrder, @Nonnull LogLevel defaultLogLevel) {
-		this(filterOrder, defaultLogLevel, DefaultHttpHeaderConverter.INSTANCE);
+		this(filterOrder, defaultLogLevel, DefaultHttpHeaderConverter.INSTANCE, DefaultHttpHeaderConverter.INSTANCE);
 	}
 
 	@Override
 	public int getOrder() {
 		return order;
-	}
-
-	@Nonnull
-	private String convertHeaders(@Nullable List<Header> headers) {
-		if (headerConverter == null) {
-			return "";
-		}
-
-		return ofNullable(headers).map(nonnullHeaders -> nonnullHeaders.stream()
-				.map(headerConverter)
-				.filter(Objects::nonNull)
-				.collect(Collectors.joining("\n"))).orElse("");
-	}
-
-	@Nonnull
-	private String convertCookies(@Nullable List<Cookie> cookies) {
-		if (cookieConverter == null) {
-			return "";
-		}
-
-		return ofNullable(cookies).map(nonnullCookies -> cookies.stream()
-				.map(cookieConverter)
-				.filter(Objects::nonNull)
-				.collect(Collectors.joining("\n"))).orElse("");
-	}
-
-	private String formatTextHeader(@Nullable List<Header> headers, @Nullable List<Cookie> cookies) {
-		StringBuilder result = new StringBuilder();
-		String headersString = convertHeaders(headers);
-		if (!headersString.isEmpty()) {
-			result.append(HEADERS_TAG).append("\n").append(headersString);
-		}
-		String cookiesString = convertCookies(cookies);
-		if (!cookiesString.isEmpty()) {
-			if (!headersString.isEmpty()) {
-				result.append("\n\n");
-			}
-			result.append(COOKIES_TAG).append("\n").append(cookiesString);
-		}
-		return result.toString();
-	}
-
-	private String formatTextEntity(@Nonnull String entityName, @Nullable List<Header> headers,
-			@Nullable List<Cookie> cookies, @Nullable String body, @Nonnull String contentType) {
-		String prefix = formatTextHeader(headers, cookies);
-		String indent = prefix.isEmpty() ? entityName : "\n\n" + entityName;
-		return ofNullable(body).map(b -> prefix + indent + "\n```\n" + (contentPrettiers.containsKey(contentType) ?
-				contentPrettiers.get(contentType).apply(body) :
-				body) + "\n```").orElse(prefix);
 	}
 
 	private void attachAsBinary(@Nullable String message, @Nullable byte[] attachment, @Nonnull String contentType) {
@@ -238,7 +197,15 @@ public class ReportPortalRestAssuredLoggingFilter implements OrderedFilter {
 	}
 
 	private void emitLog(@Nonnull FilterableRequestSpecification request) {
-		HttpRequestFormatter formatter = HttpEntityFactory.createHttpRequestFormatter(request);
+		HttpRequestFormatter formatter = HttpEntityFactory.createHttpRequestFormatter(request,
+				uriConverter,
+				headerConverter,
+				cookieConverter,
+				contentPrettiers,
+				partHeaderConverter,
+				textContentTypes,
+				multipartContentTypes
+		);
 
 		BodyType type = formatter.getType();
 		switch (type) {
@@ -265,7 +232,12 @@ public class ReportPortalRestAssuredLoggingFilter implements OrderedFilter {
 			return;
 		}
 
-		HttpResponseFormatter formatter = HttpEntityFactory.createHttpResponseFormatter(response);
+		HttpResponseFormatter formatter = HttpEntityFactory.createHttpResponseFormatter(response,
+				headerConverter,
+				cookieConverter,
+				contentPrettiers,
+				textContentTypes
+		);
 		BodyType type = formatter.getType();
 		switch (type) {
 			case NONE:
@@ -278,9 +250,8 @@ public class ReportPortalRestAssuredLoggingFilter implements OrderedFilter {
 				attachAsBinary(formatter.formatHead(), formatter.getBinaryBody(), formatter.getMimeType());
 				break;
 			default:
-				ReportPortal.emitLog(
-						"Unknown response type: " + type.name(),
-						"ERROR",
+				ReportPortal.emitLog("Unknown response type: " + type.name(),
+						LogLevel.ERROR.name(),
 						Calendar.getInstance().getTime()
 				);
 		}

@@ -28,6 +28,7 @@ import static java.util.Optional.ofNullable;
 
 public class DefaultCookieConverter implements Function<Cookie, String> {
 
+	private static final int UNDEFINED = -1;
 	private static final String COMMENT = "Comment";
 	private static final String PATH = "Path";
 	private static final String DOMAIN = "Domain";
@@ -47,6 +48,7 @@ public class DefaultCookieConverter implements Function<Cookie, String> {
 	private DefaultCookieConverter() {
 	}
 
+	@SuppressWarnings("ConstantConditions")
 	@Override
 	public @Nullable String apply(@Nullable Cookie cookie) {
 		return ofNullable(cookie).map(c -> {
@@ -55,9 +57,12 @@ public class DefaultCookieConverter implements Function<Cookie, String> {
 			ofNullable(c.getComment()).ifPresent(comment -> cookieValues.add(COMMENT + ATTRIBUTE_VALUE + comment));
 			ofNullable(c.getPath()).ifPresent(path -> cookieValues.add(PATH + ATTRIBUTE_VALUE + path));
 			ofNullable(c.getDomain()).ifPresent(domain -> cookieValues.add(DOMAIN + ATTRIBUTE_VALUE + domain));
-			ofNullable(c.getMaxAge()).ifPresent(maxAge -> cookieValues.add(MAX_AGE + ATTRIBUTE_VALUE + maxAge));
-			ofNullable(c.getSecured()).ifPresent(secured -> cookieValues.add(SECURE + ATTRIBUTE_VALUE + secured));
-			ofNullable(c.getHttpOnly()).ifPresent(httpOnly -> cookieValues.add(HTTP_ONLY + ATTRIBUTE_VALUE + httpOnly));
+			ofNullable(c.getMaxAge()).filter(m -> m != UNDEFINED)
+					.ifPresent(maxAge -> cookieValues.add(MAX_AGE + ATTRIBUTE_VALUE + maxAge));
+			ofNullable(c.getSecured()).filter(s -> s)
+					.ifPresent(secured -> cookieValues.add(SECURE + ATTRIBUTE_VALUE + secured));
+			ofNullable(c.getHttpOnly()).filter(h -> h)
+					.ifPresent(httpOnly -> cookieValues.add(HTTP_ONLY + ATTRIBUTE_VALUE + httpOnly));
 			ofNullable(c.getExpiryDate()).ifPresent(expireDate -> cookieValues.add(
 					EXPIRES + ATTRIBUTE_VALUE + new SimpleDateFormat().format(expireDate)));
 			ofNullable(c.getVersion()).ifPresent(version -> cookieValues.add(VERSION + ATTRIBUTE_VALUE + version));

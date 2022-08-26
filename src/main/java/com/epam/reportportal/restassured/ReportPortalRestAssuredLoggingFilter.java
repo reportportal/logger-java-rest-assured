@@ -16,19 +16,19 @@
 
 package com.epam.reportportal.restassured;
 
+import com.epam.reportportal.formatting.http.HttpPartFormatter;
+import com.epam.reportportal.formatting.http.HttpRequestFormatter;
+import com.epam.reportportal.formatting.http.HttpResponseFormatter;
+import com.epam.reportportal.formatting.http.converters.DefaultCookieConverter;
+import com.epam.reportportal.formatting.http.converters.DefaultHttpHeaderConverter;
+import com.epam.reportportal.formatting.http.converters.DefaultUriConverter;
+import com.epam.reportportal.formatting.http.entities.BodyType;
+import com.epam.reportportal.formatting.http.entities.Cookie;
+import com.epam.reportportal.formatting.http.entities.Header;
 import com.epam.reportportal.listeners.ItemStatus;
 import com.epam.reportportal.listeners.LogLevel;
 import com.epam.reportportal.message.ReportPortalMessage;
 import com.epam.reportportal.restassured.support.HttpEntityFactory;
-import com.epam.reportportal.restassured.support.HttpPartFormatter;
-import com.epam.reportportal.restassured.support.HttpRequestFormatter;
-import com.epam.reportportal.restassured.support.HttpResponseFormatter;
-import com.epam.reportportal.restassured.support.converters.DefaultCookieConverter;
-import com.epam.reportportal.restassured.support.converters.DefaultHttpHeaderConverter;
-import com.epam.reportportal.restassured.support.converters.DefaultUriConverter;
-import com.epam.reportportal.restassured.support.http.BodyType;
-import com.epam.reportportal.restassured.support.http.Cookie;
-import com.epam.reportportal.restassured.support.http.Header;
 import com.epam.reportportal.service.Launch;
 import com.epam.reportportal.service.ReportPortal;
 import com.epam.reportportal.service.step.StepReporter;
@@ -44,7 +44,7 @@ import javax.annotation.Nullable;
 import java.util.*;
 import java.util.function.Function;
 
-import static com.epam.reportportal.restassured.support.Constants.*;
+import static com.epam.reportportal.formatting.http.Constants.*;
 import static java.util.Optional.ofNullable;
 
 /**
@@ -60,6 +60,8 @@ import static java.util.Optional.ofNullable;
  * </pre>
  */
 public class ReportPortalRestAssuredLoggingFilter implements OrderedFilter {
+
+	public static final String NULL_RESPONSE = "NULL response from RestAssured";
 
 	private final int order;
 	private final String logLevel;

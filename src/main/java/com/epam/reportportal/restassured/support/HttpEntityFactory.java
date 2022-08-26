@@ -16,8 +16,11 @@
 
 package com.epam.reportportal.restassured.support;
 
-import com.epam.reportportal.restassured.support.http.Cookie;
-import com.epam.reportportal.restassured.support.http.Header;
+import com.epam.reportportal.formatting.http.HttpPartFormatter;
+import com.epam.reportportal.formatting.http.HttpRequestFormatter;
+import com.epam.reportportal.formatting.http.HttpResponseFormatter;
+import com.epam.reportportal.formatting.http.entities.Cookie;
+import com.epam.reportportal.formatting.http.entities.Header;
 import com.epam.reportportal.service.ReportPortal;
 import io.restassured.response.Response;
 import io.restassured.response.ResponseBodyData;
@@ -33,7 +36,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.function.Function;
 
-import static com.epam.reportportal.restassured.support.HttpFormatUtils.getMimeType;
+import static com.epam.reportportal.formatting.http.HttpFormatUtils.getMimeType;
 import static java.util.Optional.ofNullable;
 
 /**

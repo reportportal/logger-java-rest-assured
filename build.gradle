@@ -41,9 +41,11 @@ dependencies {
     api 'com.epam.reportportal:client-java:5.1.11'
     api 'com.google.code.findbugs:jsr305:3.0.2'
     api 'com.epam.reportportal:commons-model:5.0.0'
-    api 'io.rest-assured:rest-assured:5.0.1'
-
-    implementation 'org.jsoup:jsoup:1.14.3'
+    api ('io.rest-assured:rest-assured:5.1.1') {
+        exclude module: 'commons-codec'
+    }
+    implementation 'commons-codec:commons-codec:1.15'
+    implementation 'com.epam.reportportal:utils-java-formatting:5.0.0'
 
     testImplementation('com.github.reportportal:agent-java-test-utils:236a68c')
     testImplementation("org.junit.platform:junit-platform-runner:${junit5_runner_version}") {

@@ -27,6 +27,7 @@ import com.epam.reportportal.service.ReportPortal;
 import com.epam.reportportal.service.step.StepReporter;
 import com.epam.reportportal.utils.files.Utils;
 import io.restassured.filter.FilterContext;
+import io.restassured.filter.OrderedFilter;
 import io.restassured.http.Cookie;
 import io.restassured.http.Cookies;
 import io.restassured.http.Header;
@@ -117,14 +118,20 @@ public class ReportPortalRestAssuredLoggingFilterTest {
 	}
 
 	private void runFilter(FilterableRequestSpecification requestSpecification, Response responseObject,
-			Consumer<MockedStatic<ReportPortal>> mocks) {
+			Consumer<MockedStatic<ReportPortal>> mocks, OrderedFilter filter) {
 		try (MockedStatic<ReportPortal> utilities = Mockito.mockStatic(ReportPortal.class)) {
 			mocks.accept(utilities);
-			new ReportPortalRestAssuredLoggingFilter(42, LogLevel.INFO).filter(requestSpecification,
-					null,
-					getFilterContext(responseObject)
-			);
+			filter.filter(requestSpecification, null, getFilterContext(responseObject));
 		}
+	}
+
+	private void runFilter(FilterableRequestSpecification requestSpecification, Response responseObject,
+			Consumer<MockedStatic<ReportPortal>> mocks) {
+		runFilter(requestSpecification,
+				responseObject,
+				mocks,
+				new ReportPortalRestAssuredLoggingFilter(42, LogLevel.INFO)
+		);
 	}
 
 	private List<String> runFilterTextMessageCapture(FilterableRequestSpecification requestSpecification,
@@ -149,9 +156,8 @@ public class ReportPortalRestAssuredLoggingFilterTest {
 		return logCapture.getAllValues();
 	}
 
-	@SuppressWarnings("SameParameterValue")
 	private Triple<List<String>, List<String>, List<ReportPortalMessage>> runFilterComplexMessageCapture(
-			FilterableRequestSpecification requestSpecification, Response responseObject) {
+			FilterableRequestSpecification requestSpecification, Response responseObject, OrderedFilter filter) {
 		ArgumentCaptor<String> stepCaptor = ArgumentCaptor.forClass(String.class);
 		ArgumentCaptor<String> stringArgumentCaptor = ArgumentCaptor.forClass(String.class);
 		ArgumentCaptor<ReportPortalMessage> messageArgumentCaptor = ArgumentCaptor.forClass(ReportPortalMessage.class);
@@ -166,12 +172,20 @@ public class ReportPortalRestAssuredLoggingFilterTest {
 						.thenReturn(Boolean.TRUE);
 				mock.when(() -> ReportPortal.emitLog(messageArgumentCaptor.capture(), anyString(), any(Date.class)))
 						.thenReturn(Boolean.TRUE);
-			});
+			}, filter);
 		}
-
 		return Triple.of(stepCaptor.getAllValues(),
 				stringArgumentCaptor.getAllValues(),
 				messageArgumentCaptor.getAllValues()
+		);
+	}
+
+	@SuppressWarnings("SameParameterValue")
+	private Triple<List<String>, List<String>, List<ReportPortalMessage>> runFilterComplexMessageCapture(
+			FilterableRequestSpecification requestSpecification, Response responseObject) {
+		return runFilterComplexMessageCapture(requestSpecification,
+				responseObject,
+				new ReportPortalRestAssuredLoggingFilter(42, LogLevel.INFO)
 		);
 	}
 
@@ -579,5 +593,17 @@ public class ReportPortalRestAssuredLoggingFilterTest {
 
 		assertThat(logs.getRight().get(0).getData().read(), equalTo(image));
 		assertThat(logs.getRight().get(1).getData().read(), equalTo(image));
+	}
+
+	@Test
+	public void test_rest_assured_log_filter_type() {
+		FilterableRequestSpecification requestSpecification = mockBasicRequest(HTML_TYPE);
+		Response responseObject = mockBasicResponse(HTML_TYPE);
+		Triple<List<String>, List<String>, List<ReportPortalMessage>> logs = runFilterComplexMessageCapture(
+				requestSpecification,
+				responseObject,
+				new ReportPortalRestAssuredLoggingFilter(42, LogLevel.INFO).addRequestFilter(r -> true)
+		);
+		assertThat(logs.getRight(), hasSize(0));
 	}
 }

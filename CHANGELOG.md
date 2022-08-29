@@ -1,6 +1,8 @@
 # Changelog
 
 ## [Unreleased]
+### Added
+- `ReportPortalRestAssuredLoggingFilter.addRequestFilter` method to be able to allow skipping certain request logging, by @HardNorth
 ### Fixed
 - NullPointerExceptions in case of null values for different converters, by @HardNorth
 ### Changed

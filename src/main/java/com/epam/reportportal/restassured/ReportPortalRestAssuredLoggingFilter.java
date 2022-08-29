@@ -42,7 +42,9 @@ import io.restassured.specification.FilterableResponseSpecification;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.util.*;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Function;
+import java.util.function.Predicate;
 
 import static com.epam.reportportal.formatting.http.Constants.*;
 import static java.util.Optional.ofNullable;
@@ -62,6 +64,8 @@ import static java.util.Optional.ofNullable;
 public class ReportPortalRestAssuredLoggingFilter implements OrderedFilter {
 
 	public static final String NULL_RESPONSE = "NULL response from RestAssured";
+
+	private final List<Predicate<FilterableRequestSpecification>> requestFilters = new CopyOnWriteArrayList<>();
 
 	private final int order;
 	private final String logLevel;
@@ -262,6 +266,9 @@ public class ReportPortalRestAssuredLoggingFilter implements OrderedFilter {
 	@Override
 	public Response filter(FilterableRequestSpecification requestSpec, FilterableResponseSpecification responseSpec,
 			FilterContext ctx) {
+		if (requestFilters.stream().anyMatch(f -> f.test(requestSpec))) {
+			return ctx.next(requestSpec, responseSpec);
+		}
 		emitLog(requestSpec);
 		Response response = ctx.next(requestSpec, responseSpec);
 		emitLog(response);
@@ -269,18 +276,24 @@ public class ReportPortalRestAssuredLoggingFilter implements OrderedFilter {
 	}
 
 	public ReportPortalRestAssuredLoggingFilter setTextContentTypes(@Nonnull Set<String> textContentTypes) {
-		this.textContentTypes = textContentTypes;
+		this.textContentTypes = Collections.unmodifiableSet(new HashSet<>(textContentTypes));
 		return this;
 	}
 
 	public ReportPortalRestAssuredLoggingFilter setMultipartContentTypes(@Nonnull Set<String> multipartContentTypes) {
-		this.multipartContentTypes = multipartContentTypes;
+		this.multipartContentTypes = Collections.unmodifiableSet(new HashSet<>(multipartContentTypes));
 		return this;
 	}
 
 	public ReportPortalRestAssuredLoggingFilter setContentPrettiers(
 			@Nonnull Map<String, Function<String, String>> contentPrettiers) {
-		this.contentPrettiers = contentPrettiers;
+		this.contentPrettiers = Collections.unmodifiableMap(new HashMap<>(contentPrettiers));
+		return this;
+	}
+
+	public ReportPortalRestAssuredLoggingFilter addRequestFilter(
+			@Nonnull Predicate<FilterableRequestSpecification> requestFilter) {
+		requestFilters.add(requestFilter);
 		return this;
 	}
 }

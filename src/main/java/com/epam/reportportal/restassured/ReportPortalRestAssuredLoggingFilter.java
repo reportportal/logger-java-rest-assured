@@ -46,7 +46,8 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Function;
 import java.util.function.Predicate;
 
-import static com.epam.reportportal.formatting.http.Constants.*;
+import static com.epam.reportportal.formatting.http.Constants.BODY_TYPE_MAP;
+import static com.epam.reportportal.formatting.http.Constants.DEFAULT_PRETTIERS;
 import static java.util.Optional.ofNullable;
 
 /**
@@ -77,8 +78,7 @@ public class ReportPortalRestAssuredLoggingFilter implements OrderedFilter {
 	private final Function<String, String> uriConverter;
 	private Map<String, Function<String, String>> contentPrettiers = DEFAULT_PRETTIERS;
 
-	private Set<String> textContentTypes = TEXT_TYPES;
-	private Set<String> multipartContentTypes = MULTIPART_TYPES;
+	private Map<String, BodyType> bodyTypeMap = BODY_TYPE_MAP;
 
 	/**
 	 * Create an ordered REST Assured filter with the specific log level and header converter.
@@ -215,8 +215,7 @@ public class ReportPortalRestAssuredLoggingFilter implements OrderedFilter {
 				cookieConverter,
 				contentPrettiers,
 				partHeaderConverter,
-				textContentTypes,
-				multipartContentTypes
+				bodyTypeMap
 		);
 
 		BodyType type = formatter.getType();
@@ -248,7 +247,7 @@ public class ReportPortalRestAssuredLoggingFilter implements OrderedFilter {
 				headerConverter,
 				cookieConverter,
 				contentPrettiers,
-				textContentTypes
+				bodyTypeMap
 		);
 		BodyType type = formatter.getType();
 		switch (type) {
@@ -281,13 +280,8 @@ public class ReportPortalRestAssuredLoggingFilter implements OrderedFilter {
 		return response;
 	}
 
-	public ReportPortalRestAssuredLoggingFilter setTextContentTypes(@Nonnull Set<String> textContentTypes) {
-		this.textContentTypes = Collections.unmodifiableSet(new HashSet<>(textContentTypes));
-		return this;
-	}
-
-	public ReportPortalRestAssuredLoggingFilter setMultipartContentTypes(@Nonnull Set<String> multipartContentTypes) {
-		this.multipartContentTypes = Collections.unmodifiableSet(new HashSet<>(multipartContentTypes));
+	public ReportPortalRestAssuredLoggingFilter setBodyTypeMap(@Nonnull Map<String, BodyType> typeMap) {
+		this.bodyTypeMap = Collections.unmodifiableMap(new HashMap<>(typeMap));
 		return this;
 	}
 

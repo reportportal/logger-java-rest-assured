@@ -19,6 +19,7 @@ package com.epam.reportportal.restassured.support;
 import com.epam.reportportal.formatting.http.HttpPartFormatter;
 import com.epam.reportportal.formatting.http.HttpRequestFormatter;
 import com.epam.reportportal.formatting.http.HttpResponseFormatter;
+import com.epam.reportportal.formatting.http.entities.BodyType;
 import com.epam.reportportal.formatting.http.entities.Cookie;
 import com.epam.reportportal.formatting.http.entities.Header;
 import com.epam.reportportal.service.ReportPortal;
@@ -33,9 +34,9 @@ import java.io.File;
 import java.io.IOException;
 import java.util.Calendar;
 import java.util.Map;
-import java.util.Set;
 import java.util.function.Function;
 
+import static com.epam.reportportal.formatting.http.HttpFormatUtils.getBodyType;
 import static com.epam.reportportal.formatting.http.HttpFormatUtils.getMimeType;
 import static java.util.Optional.ofNullable;
 
@@ -50,8 +51,7 @@ public class HttpEntityFactory {
 			@Nullable Function<String, String> uriConverter, @Nullable Function<Header, String> headerConverter,
 			@Nullable Function<Cookie, String> cookieConverter,
 			@Nullable Map<String, Function<String, String>> prettiers,
-			@Nullable Function<Header, String> partHeaderConverter, @Nonnull Set<String> textContentTypes,
-			@Nonnull Set<String> multipartContentTypes) {
+			@Nullable Function<Header, String> partHeaderConverter, @Nonnull Map<String, BodyType> bodyTypeMap) {
 		HttpRequestFormatter.Builder builder = new HttpRequestFormatter.Builder(requestSpecification.getMethod(),
 				requestSpecification.getURI()
 		);
@@ -74,48 +74,56 @@ public class HttpEntityFactory {
 				.headerConverter(headerConverter)
 				.cookieConverter(cookieConverter)
 				.prettiers(prettiers);
-		String type = getMimeType(requestSpecification.getContentType());
-		if (textContentTypes.contains(type)) {
-			builder.bodyText(type, requestSpecification.getBody());
-		} else if (multipartContentTypes.contains(type)) {
-			ofNullable(requestSpecification.getMultiPartParams()).ifPresent(params -> params.forEach(it -> {
-				String partMimeType = ofNullable(it.getMimeType()).orElse(ContentType.APPLICATION_OCTET_STREAM.getMimeType());
-				HttpPartFormatter.Builder partBuilder;
-				try {
-					if (textContentTypes.contains(partMimeType)) {
-						partBuilder = new HttpPartFormatter.Builder(HttpPartFormatter.PartType.TEXT,
-								partMimeType,
-								it.getContent()
-						);
-					} else {
-						Object body = it.getContent();
-						if (body instanceof File) {
-							partBuilder = new HttpPartFormatter.Builder(HttpPartFormatter.PartType.BINARY,
-									(File) it.getContent()
-							);
-						} else {
-							partBuilder = new HttpPartFormatter.Builder(HttpPartFormatter.PartType.BINARY,
+		String mimeType = getMimeType(requestSpecification.getContentType());
+		BodyType bodyType = getBodyType(requestSpecification.getContentType(), bodyTypeMap);
+		switch (bodyType) {
+			case TEXT:
+				builder.bodyText(mimeType, requestSpecification.getBody());
+				break;
+			case FORM:
+				builder.bodyParams((String) requestSpecification.getBody());
+				break;
+			case MULTIPART:
+				ofNullable(requestSpecification.getMultiPartParams()).ifPresent(params -> params.forEach(it -> {
+					String partMimeType = ofNullable(it.getMimeType()).orElse(ContentType.APPLICATION_OCTET_STREAM.getMimeType());
+					HttpPartFormatter.Builder partBuilder;
+					try {
+						if (BodyType.TEXT == getBodyType(partMimeType, bodyTypeMap)) {
+							partBuilder = new HttpPartFormatter.Builder(HttpPartFormatter.PartType.TEXT,
 									partMimeType,
 									it.getContent()
 							);
+						} else {
+							Object body = it.getContent();
+							if (body instanceof File) {
+								partBuilder = new HttpPartFormatter.Builder(HttpPartFormatter.PartType.BINARY,
+										(File) it.getContent()
+								);
+							} else {
+								partBuilder = new HttpPartFormatter.Builder(HttpPartFormatter.PartType.BINARY,
+										partMimeType,
+										it.getContent()
+								);
+							}
 						}
+						ofNullable(it.getHeaders()).ifPresent(headers -> headers.forEach((key, value) -> partBuilder.addHeader(
+								new Header(key, value))));
+						partBuilder.controlName(it.getControlName());
+						partBuilder.charset(it.getCharset());
+						partBuilder.fileName(it.getFileName());
+						partBuilder.headerConverter(partHeaderConverter);
+						builder.addBodyPart(partBuilder.build());
+					} catch (IOException e) {
+						ReportPortal.emitLog("Unable to read file: " + e.getMessage(),
+								"ERROR",
+								Calendar.getInstance().getTime()
+						);
 					}
-					ofNullable(it.getHeaders()).ifPresent(headers -> headers.forEach((key, value) -> partBuilder.addHeader(
-							new Header(key, value))));
-					partBuilder.controlName(it.getControlName());
-					partBuilder.charset(it.getCharset());
-					partBuilder.fileName(it.getFileName());
-					partBuilder.headerConverter(partHeaderConverter);
-					builder.addBodyPart(partBuilder.build());
-				} catch (IOException e) {
-					ReportPortal.emitLog("Unable to read file: " + e.getMessage(),
-							"ERROR",
-							Calendar.getInstance().getTime()
-					);
-				}
-			}));
-		} else {
-			builder.bodyBytes(type, requestSpecification.getBody());
+				}));
+				break;
+			default:
+				builder.bodyBytes(mimeType, requestSpecification.getBody());
+				break;
 		}
 		return builder.build();
 	}
@@ -123,7 +131,7 @@ public class HttpEntityFactory {
 	@Nonnull
 	public static HttpResponseFormatter createHttpResponseFormatter(@Nonnull Response response,
 			@Nullable Function<Header, String> headerConverter, @Nullable Function<Cookie, String> cookieConverter,
-			@Nullable Map<String, Function<String, String>> prettiers, @Nonnull Set<String> textContentTypes) {
+			@Nullable Map<String, Function<String, String>> prettiers, @Nonnull Map<String, BodyType> bodyTypeMap) {
 		HttpResponseFormatter.Builder builder = new HttpResponseFormatter.Builder(response.statusCode(),
 				response.getStatusLine()
 		);
@@ -145,7 +153,8 @@ public class HttpEntityFactory {
 		builder.headerConverter(headerConverter).cookieConverter(cookieConverter).prettiers(prettiers);
 
 		String type = getMimeType(response.getContentType());
-		if (textContentTypes.contains(type)) {
+		BodyType bodyType = getBodyType(response.getContentType(), bodyTypeMap);
+		if (BodyType.TEXT == bodyType) {
 			builder.bodyText(type, ofNullable(response.getBody()).map(ResponseBodyData::asString).orElse(null));
 		} else {
 			builder.bodyBytes(type, ofNullable(response.getBody()).map(ResponseBodyData::asByteArray).orElse(null));

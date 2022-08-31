@@ -44,7 +44,7 @@ dependencies {
     api ('io.rest-assured:rest-assured:5.1.1') {
         exclude module: 'commons-codec'
     }
-    api 'com.epam.reportportal:utils-java-formatting:5.0.2'
+    api 'com.epam.reportportal:utils-java-formatting:5.1.0'
     implementation 'commons-codec:commons-codec:1.15'
 
     testImplementation('com.github.reportportal:agent-java-test-utils:236a68c')

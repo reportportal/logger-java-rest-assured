@@ -16,23 +16,16 @@
 
 package com.epam.reportportal.restassured;
 
-import com.epam.reportportal.formatting.http.HttpPartFormatter;
-import com.epam.reportportal.formatting.http.HttpRequestFormatter;
-import com.epam.reportportal.formatting.http.HttpResponseFormatter;
+import com.epam.reportportal.formatting.AbstractHttpFormatter;
 import com.epam.reportportal.formatting.http.converters.DefaultCookieConverter;
 import com.epam.reportportal.formatting.http.converters.DefaultHttpHeaderConverter;
 import com.epam.reportportal.formatting.http.converters.DefaultUriConverter;
 import com.epam.reportportal.formatting.http.entities.BodyType;
 import com.epam.reportportal.formatting.http.entities.Cookie;
 import com.epam.reportportal.formatting.http.entities.Header;
-import com.epam.reportportal.listeners.ItemStatus;
 import com.epam.reportportal.listeners.LogLevel;
-import com.epam.reportportal.message.ReportPortalMessage;
 import com.epam.reportportal.restassured.support.HttpEntityFactory;
-import com.epam.reportportal.service.Launch;
 import com.epam.reportportal.service.ReportPortal;
-import com.epam.reportportal.service.step.StepReporter;
-import com.google.common.io.ByteSource;
 import io.restassured.filter.FilterContext;
 import io.restassured.filter.OrderedFilter;
 import io.restassured.response.Response;
@@ -48,7 +41,6 @@ import java.util.function.Predicate;
 
 import static com.epam.reportportal.formatting.http.Constants.BODY_TYPE_MAP;
 import static com.epam.reportportal.formatting.http.Constants.DEFAULT_PRETTIERS;
-import static java.util.Optional.ofNullable;
 
 /**
  * REST Assured Request/Response logging filter for Report Portal.
@@ -63,25 +55,21 @@ import static java.util.Optional.ofNullable;
  *     RestAssured.filters(new ReportPortalRestAssuredLoggingFilter(42, LogLevel.INFO));
  * </pre>
  */
-public class ReportPortalRestAssuredLoggingFilter implements OrderedFilter {
+public class ReportPortalRestAssuredLoggingFilter extends AbstractHttpFormatter<ReportPortalRestAssuredLoggingFilter>
+		implements OrderedFilter {
 
 	public static final String NULL_RESPONSE = "NULL response from RestAssured";
 
 	private final List<Predicate<FilterableRequestSpecification>> requestFilters = new CopyOnWriteArrayList<>();
 
 	private final int order;
-	private final String logLevel;
 
-	private final Function<Header, String> headerConverter;
-	private final Function<Header, String> partHeaderConverter;
-	private final Function<Cookie, String> cookieConverter;
-	private final Function<String, String> uriConverter;
 	private Map<String, Function<String, String>> contentPrettiers = DEFAULT_PRETTIERS;
 
 	private Map<String, BodyType> bodyTypeMap = BODY_TYPE_MAP;
 
 	/**
-	 * Create an ordered REST Assured filter with the specific log level and header converter.
+	 * Create an ordered REST Assured filter with the log level and different converters.
 	 *
 	 * @param filterOrder               if you have different filters which modify requests on fly this parameter allows
 	 *                                  you to control the order when Report Portal logger will be called, and therefore
@@ -101,16 +89,18 @@ public class ReportPortalRestAssuredLoggingFilter implements OrderedFilter {
 			@Nullable Function<Header, String> partHeaderConvertFunction,
 			@Nullable Function<Cookie, String> cookieConvertFunction,
 			@Nullable Function<String, String> uriConverterFunction) {
+		super(
+				defaultLogLevel,
+				headerConvertFunction,
+				partHeaderConvertFunction,
+				cookieConvertFunction,
+				uriConverterFunction
+		);
 		order = filterOrder;
-		logLevel = defaultLogLevel.name();
-		headerConverter = headerConvertFunction;
-		partHeaderConverter = partHeaderConvertFunction;
-		cookieConverter = cookieConvertFunction;
-		uriConverter = uriConverterFunction;
 	}
 
 	/**
-	 * Create an ordered REST Assured filter with the specific log level and header converter.
+	 * Create an ordered REST Assured filter with the log level and different converters.
 	 *
 	 * @param filterOrder               if you have different filters which modify requests on fly this parameter allows
 	 *                                  you to control the order when Report Portal logger will be called, and therefore
@@ -137,7 +127,7 @@ public class ReportPortalRestAssuredLoggingFilter implements OrderedFilter {
 	}
 
 	/**
-	 * Create an ordered REST Assured filter with the specific log level and header converter.
+	 * Create an ordered REST Assured filter with the log level and header converters.
 	 *
 	 * @param filterOrder               if you have different filters which modify requests on fly this parameter allows
 	 *                                  you to control the order when Report Portal logger will be called, and therefore
@@ -160,7 +150,7 @@ public class ReportPortalRestAssuredLoggingFilter implements OrderedFilter {
 	}
 
 	/**
-	 * Create an ordered REST Assured filter with the specific log level and header converter.
+	 * Create an ordered REST Assured filter with the log level.
 	 *
 	 * @param filterOrder     if you have different filters which modify requests on fly this parameter allows
 	 *                        you to control the order when Report Portal logger will be called, and therefore
@@ -176,107 +166,31 @@ public class ReportPortalRestAssuredLoggingFilter implements OrderedFilter {
 		return order;
 	}
 
-	private void attachAsBinary(@Nullable String message, @Nullable byte[] attachment, @Nonnull String contentType) {
-		if (attachment == null) {
-			ReportPortal.emitLog(message, logLevel, Calendar.getInstance().getTime());
-		} else {
-			ReportPortal.emitLog(new ReportPortalMessage(ByteSource.wrap(attachment), contentType, message),
-					logLevel,
-					Calendar.getInstance().getTime()
-			);
-		}
-	}
-
-	private void logMultiPartRequest(@Nonnull HttpRequestFormatter formatter) {
-		Date currentDate = Calendar.getInstance().getTime();
-		String headers = formatter.formatHeaders() + formatter.formatCookies();
-		if (!headers.isEmpty()) {
-			ReportPortal.emitLog(headers, logLevel, currentDate);
-		}
-
-		Date myDate = currentDate;
-		for (HttpPartFormatter part : formatter.getMultipartBody()) {
-			myDate = new Date(myDate.getTime() + 1);
-			HttpPartFormatter.PartType partType = part.getType();
-			switch (partType) {
-				case TEXT:
-					ReportPortal.emitLog(part.formatAsText(), logLevel, myDate);
-					break;
-				case BINARY:
-					attachAsBinary(part.formatForBinaryDataPrefix(), part.getBinaryPayload(), part.getMimeType());
-			}
-		}
-	}
-
-	private void emitLog(@Nonnull FilterableRequestSpecification request) {
-		HttpRequestFormatter formatter = HttpEntityFactory.createHttpRequestFormatter(request,
-				uriConverter,
-				headerConverter,
-				cookieConverter,
-				contentPrettiers,
-				partHeaderConverter,
-				bodyTypeMap
-		);
-
-		BodyType type = formatter.getType();
-		switch (type) {
-			case NONE:
-				ReportPortal.emitLog(formatter.formatHead(), logLevel, Calendar.getInstance().getTime());
-				break;
-			case TEXT:
-				ReportPortal.emitLog(formatter.formatAsText(), logLevel, Calendar.getInstance().getTime());
-				break;
-			case BINARY:
-				attachAsBinary(formatter.formatHead(), formatter.getBinaryBody(), formatter.getMimeType());
-				break;
-			case MULTIPART:
-				Optional<StepReporter> sr = ofNullable(Launch.currentLaunch()).map(Launch::getStepReporter);
-				sr.ifPresent(r -> r.sendStep(ItemStatus.INFO, formatter.formatRequest()));
-				logMultiPartRequest(formatter);
-				sr.ifPresent(StepReporter::finishPreviousStep);
-		}
-	}
-
-	private void emitLog(@Nullable Response response) {
-		if (response == null) {
-			ReportPortal.emitLog(NULL_RESPONSE, logLevel, Calendar.getInstance().getTime());
-			return;
-		}
-
-		HttpResponseFormatter formatter = HttpEntityFactory.createHttpResponseFormatter(response,
-				headerConverter,
-				cookieConverter,
-				contentPrettiers,
-				bodyTypeMap
-		);
-		BodyType type = formatter.getType();
-		switch (type) {
-			case NONE:
-				ReportPortal.emitLog(formatter.formatHead(), logLevel, Calendar.getInstance().getTime());
-				break;
-			case TEXT:
-				ReportPortal.emitLog(formatter.formatAsText(), logLevel, Calendar.getInstance().getTime());
-				break;
-			case BINARY:
-				attachAsBinary(formatter.formatHead(), formatter.getBinaryBody(), formatter.getMimeType());
-				break;
-			default:
-				ReportPortal.emitLog("Unknown response type: " + type.name(),
-						LogLevel.ERROR.name(),
-						Calendar.getInstance().getTime()
-				);
-		}
-	}
-
 	@Override
 	public Response filter(FilterableRequestSpecification requestSpec, FilterableResponseSpecification responseSpec,
 			FilterContext ctx) {
 		if (requestFilters.stream().anyMatch(f -> f.test(requestSpec))) {
 			return ctx.next(requestSpec, responseSpec);
 		}
-		emitLog(requestSpec);
+		emitLog(HttpEntityFactory.createHttpRequestFormatter(requestSpec,
+				uriConverter,
+				headerConverter,
+				cookieConverter,
+				contentPrettiers,
+				partHeaderConverter,
+				bodyTypeMap
+		));
 		Response response = ctx.next(requestSpec, responseSpec);
-		emitLog(response);
+		if (response == null) {
+			ReportPortal.emitLog(NULL_RESPONSE, logLevel, Calendar.getInstance().getTime());
+		} else {
+			emitLog(HttpEntityFactory.createHttpResponseFormatter(response,
+					headerConverter,
+					cookieConverter,
+					contentPrettiers,
+					bodyTypeMap
+			));
+		}
 		return response;
 	}
 

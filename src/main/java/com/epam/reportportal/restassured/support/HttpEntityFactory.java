@@ -81,7 +81,7 @@ public class HttpEntityFactory {
 				builder.bodyText(mimeType, requestSpecification.getBody());
 				break;
 			case FORM:
-				builder.bodyParams((String) requestSpecification.getBody());
+				builder.bodyParams(requestSpecification.getFormParams());
 				break;
 			case MULTIPART:
 				ofNullable(requestSpecification.getMultiPartParams()).ifPresent(params -> params.forEach(it -> {

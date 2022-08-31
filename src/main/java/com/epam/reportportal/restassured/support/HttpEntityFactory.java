@@ -123,7 +123,6 @@ public class HttpEntityFactory {
 				break;
 			default:
 				builder.bodyBytes(mimeType, requestSpecification.getBody());
-				break;
 		}
 		return builder.build();
 	}

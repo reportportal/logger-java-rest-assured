@@ -17,6 +17,7 @@
 package com.epam.reportportal.restassured;
 
 import com.epam.reportportal.formatting.http.Constants;
+import com.epam.reportportal.formatting.http.converters.DefaultCookieConverter;
 import com.epam.reportportal.formatting.http.prettiers.JsonPrettier;
 import com.epam.reportportal.formatting.http.prettiers.XmlPrettier;
 import com.epam.reportportal.listeners.ItemStatus;
@@ -266,11 +267,13 @@ public class ReportPortalRestAssuredLoggingFilterTest {
 	}
 
 	private static String formatCookie(Cookie cookie) {
+		SimpleDateFormat sdf = new SimpleDateFormat(DefaultCookieConverter.DEFAULT_COOKIE_DATE_FORMAT);
+		sdf.setTimeZone(TimeZone.getTimeZone("UTC"));
 		return "**Cookies**\n" + String.format("%s: Comment=%s; Domain=%s; Expires=%s; Version=%d",
 				cookie.getName(),
 				cookie.getComment(),
 				cookie.getDomain(),
-				new SimpleDateFormat().format(cookie.getExpiryDate()),
+				sdf.format(cookie.getExpiryDate()),
 				cookie.getVersion()
 		);
 	}

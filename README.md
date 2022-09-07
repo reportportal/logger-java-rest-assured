@@ -68,8 +68,8 @@ public class BaseTest {
 }
 ```
 
-If you don't have a base class, you can pui initialization into one of the most general initialization block. E.G. for TestNG it may be
-`@BeforeSuite`:
+If you don't have a base class, you can put initialization into one of the most general initialization block. E.G.
+for TestNG it may be `@BeforeSuite`:
 
 ```java
 public class ApiTest {

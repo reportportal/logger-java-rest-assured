@@ -1,6 +1,15 @@
 # Changelog
 
 ## [Unreleased]
+### Added
+- `ReportPortalRestAssuredLoggingFilter.addRequestFilter` method to be able to allow skipping certain request logging, by @HardNorth
+- `application/x-www-form-urlencoded` body type handling, by @HardNorth
+### Fixed
+- NullPointerExceptions in case of null values for different converters, by @HardNorth
+### Changed
+- Client version updated on [5.1.11](https://github.com/reportportal/client-java/releases/tag/5.1.11), by @HardNorth
+- `new Date()` replaced with `Calendar.getInstance().getTime()`
+- Complete code refactoring with moving common HTTP formatting code to a separate library: `utils-java-formatting`, by @HardNorth
 
 ## [5.1.5]
 ### Fixed

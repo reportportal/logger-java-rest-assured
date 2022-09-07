@@ -16,15 +16,19 @@
 
 package com.epam.reportportal.restassured;
 
+import com.epam.reportportal.formatting.http.Constants;
+import com.epam.reportportal.formatting.http.converters.DefaultCookieConverter;
+import com.epam.reportportal.formatting.http.prettiers.JsonPrettier;
+import com.epam.reportportal.formatting.http.prettiers.XmlPrettier;
 import com.epam.reportportal.listeners.ItemStatus;
 import com.epam.reportportal.listeners.LogLevel;
 import com.epam.reportportal.message.ReportPortalMessage;
-import com.epam.reportportal.restassured.support.Converters;
 import com.epam.reportportal.service.Launch;
 import com.epam.reportportal.service.ReportPortal;
 import com.epam.reportportal.service.step.StepReporter;
 import com.epam.reportportal.utils.files.Utils;
 import io.restassured.filter.FilterContext;
+import io.restassured.filter.OrderedFilter;
 import io.restassured.http.Cookie;
 import io.restassured.http.Cookies;
 import io.restassured.http.Header;
@@ -48,10 +52,12 @@ import org.mockito.Mockito;
 
 import java.io.File;
 import java.io.IOException;
+import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
+import static com.epam.reportportal.restassured.ReportPortalRestAssuredLoggingFilter.NULL_RESPONSE;
 import static java.util.Optional.ofNullable;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
@@ -105,29 +111,37 @@ public class ReportPortalRestAssuredLoggingFilterTest {
 	}
 
 	public static Iterable<Object[]> requestData() {
-		return Arrays.asList(new Object[] { JSON_TYPE, "{\"object\": {\"key\": \"value\"}}", "{\"object\": {\"key\": \"value\"}}",
-						Converters.JSON_PRETTIER, null, null },
+		return Arrays.asList(new Object[] { JSON_TYPE, "{\"object\": {\"key\": \"value\"}}",
+						"{\"object\": {\"key\": \"value\"}}", JsonPrettier.INSTANCE, null, null },
 				new Object[] { "application/xml", "<test><key><value>value</value></key></test>",
-						"<test><key><value>value</value></key></test>", Converters.XML_PRETTIER, null, null }
+						"<test><key><value>value</value></key></test>", XmlPrettier.INSTANCE, null, null }
 		);
 	}
 
 	private void runFilter(FilterableRequestSpecification requestSpecification, Response responseObject,
-			Consumer<MockedStatic<ReportPortal>> mocks) {
+			Consumer<MockedStatic<ReportPortal>> mocks, OrderedFilter filter) {
 		try (MockedStatic<ReportPortal> utilities = Mockito.mockStatic(ReportPortal.class)) {
 			mocks.accept(utilities);
-			new ReportPortalRestAssuredLoggingFilter(42, LogLevel.INFO).filter(requestSpecification,
-					null,
-					getFilterContext(responseObject)
-			);
+			filter.filter(requestSpecification, null, getFilterContext(responseObject));
 		}
 	}
 
-	private List<String> runFilterTextMessageCapture(FilterableRequestSpecification requestSpecification, Response responseObject) {
+	private void runFilter(FilterableRequestSpecification requestSpecification, Response responseObject,
+			Consumer<MockedStatic<ReportPortal>> mocks) {
+		runFilter(requestSpecification,
+				responseObject,
+				mocks,
+				new ReportPortalRestAssuredLoggingFilter(42, LogLevel.INFO)
+		);
+	}
+
+	private List<String> runFilterTextMessageCapture(FilterableRequestSpecification requestSpecification,
+			Response responseObject) {
 		ArgumentCaptor<String> logCapture = ArgumentCaptor.forClass(String.class);
 		runFilter(requestSpecification,
 				responseObject,
-				mock -> mock.when(() -> ReportPortal.emitLog(logCapture.capture(), anyString(), any(Date.class))).thenReturn(Boolean.TRUE)
+				mock -> mock.when(() -> ReportPortal.emitLog(logCapture.capture(), anyString(), any(Date.class)))
+						.thenReturn(Boolean.TRUE)
 		);
 		return logCapture.getAllValues();
 	}
@@ -137,14 +151,14 @@ public class ReportPortalRestAssuredLoggingFilterTest {
 		ArgumentCaptor<ReportPortalMessage> logCapture = ArgumentCaptor.forClass(ReportPortalMessage.class);
 		runFilter(requestSpecification,
 				responseObject,
-				mock -> mock.when(() -> ReportPortal.emitLog(logCapture.capture(), anyString(), any(Date.class))).thenReturn(Boolean.TRUE)
+				mock -> mock.when(() -> ReportPortal.emitLog(logCapture.capture(), anyString(), any(Date.class)))
+						.thenReturn(Boolean.TRUE)
 		);
 		return logCapture.getAllValues();
 	}
 
-	@SuppressWarnings("SameParameterValue")
 	private Triple<List<String>, List<String>, List<ReportPortalMessage>> runFilterComplexMessageCapture(
-			FilterableRequestSpecification requestSpecification, Response responseObject) {
+			FilterableRequestSpecification requestSpecification, Response responseObject, OrderedFilter filter) {
 		ArgumentCaptor<String> stepCaptor = ArgumentCaptor.forClass(String.class);
 		ArgumentCaptor<String> stringArgumentCaptor = ArgumentCaptor.forClass(String.class);
 		ArgumentCaptor<ReportPortalMessage> messageArgumentCaptor = ArgumentCaptor.forClass(ReportPortalMessage.class);
@@ -159,10 +173,21 @@ public class ReportPortalRestAssuredLoggingFilterTest {
 						.thenReturn(Boolean.TRUE);
 				mock.when(() -> ReportPortal.emitLog(messageArgumentCaptor.capture(), anyString(), any(Date.class)))
 						.thenReturn(Boolean.TRUE);
-			});
+			}, filter);
 		}
+		return Triple.of(stepCaptor.getAllValues(),
+				stringArgumentCaptor.getAllValues(),
+				messageArgumentCaptor.getAllValues()
+		);
+	}
 
-		return Triple.of(stepCaptor.getAllValues(), stringArgumentCaptor.getAllValues(), messageArgumentCaptor.getAllValues());
+	@SuppressWarnings("SameParameterValue")
+	private Triple<List<String>, List<String>, List<ReportPortalMessage>> runFilterComplexMessageCapture(
+			FilterableRequestSpecification requestSpecification, Response responseObject) {
+		return runFilterComplexMessageCapture(requestSpecification,
+				responseObject,
+				new ReportPortalRestAssuredLoggingFilter(42, LogLevel.INFO)
+		);
 	}
 
 	private static FilterableRequestSpecification mockBasicRequest(String contentType) {
@@ -213,7 +238,8 @@ public class ReportPortalRestAssuredLoggingFilterTest {
 		String request = logs.get(0);
 		assertThat(request, equalTo(expectedRequest));
 
-		String expectedResponse = EMPTY_RESPONSE + "\n\n**Body**\n```\n" + prettier.apply((String) responseBody) + "\n```";
+		String expectedResponse =
+				EMPTY_RESPONSE + "\n\n**Body**\n```\n" + prettier.apply((String) responseBody) + "\n```";
 		String response = logs.get(1);
 		assertThat(response, equalTo(expectedResponse));
 	}
@@ -240,6 +266,18 @@ public class ReportPortalRestAssuredLoggingFilterTest {
 		assertThat(logs.get(1), equalTo(EMPTY_RESPONSE + headerString));
 	}
 
+	private static String formatCookie(Cookie cookie) {
+		SimpleDateFormat sdf = new SimpleDateFormat(DefaultCookieConverter.DEFAULT_COOKIE_DATE_FORMAT);
+		sdf.setTimeZone(TimeZone.getTimeZone("UTC"));
+		return "**Cookies**\n" + String.format("%s: Comment=%s; Domain=%s; Expires=%s; Version=%d",
+				cookie.getName(),
+				cookie.getComment(),
+				cookie.getDomain(),
+				sdf.format(cookie.getExpiryDate()),
+				cookie.getVersion()
+		);
+	}
+
 	@Test
 	public void test_rest_assured_logger_cookies() {
 		Cookie cookie = new Cookie.Builder("test").setComment("test comment")
@@ -257,7 +295,7 @@ public class ReportPortalRestAssuredLoggingFilterTest {
 		List<String> logs = runFilterTextMessageCapture(requestSpecification, responseObject);
 		assertThat(logs, hasSize(2)); // Request + Response
 
-		String headerString = "\n\n**Cookies**\n" + cookie.toString();
+		String headerString = "\n\n" + formatCookie(cookie);
 
 		assertThat(logs.get(0), equalTo(EMPTY_REQUEST + headerString));
 		assertThat(logs.get(1), equalTo(EMPTY_RESPONSE + headerString));
@@ -284,7 +322,8 @@ public class ReportPortalRestAssuredLoggingFilterTest {
 		List<String> logs = runFilterTextMessageCapture(requestSpecification, responseObject);
 		assertThat(logs, hasSize(2)); // Request + Response
 
-		String headerString = "\n\n**Headers**\n" + HTTP_HEADER + ": " + HTTP_HEADER_VALUE + "\n\n**Cookies**\n" + cookie.toString();
+		String headerString =
+				"\n\n**Headers**\n" + HTTP_HEADER + ": " + HTTP_HEADER_VALUE + "\n\n" + formatCookie(cookie);
 
 		assertThat(logs.get(0), equalTo(EMPTY_REQUEST + headerString));
 		assertThat(logs.get(1), equalTo(EMPTY_RESPONSE + headerString));
@@ -356,7 +395,7 @@ public class ReportPortalRestAssuredLoggingFilterTest {
 		List<String> logs = runFilterTextMessageCapture(requestSpecification, null);
 		assertThat(logs, hasSize(2)); // Request + Response
 		assertThat(logs.get(0), equalTo(EMPTY_REQUEST));
-		assertThat(logs.get(1), equalTo(ReportPortalRestAssuredLoggingFilter.NULL_RESPONSE));
+		assertThat(logs.get(1), equalTo(NULL_RESPONSE));
 	}
 
 	public static Iterable<Object> emptyMultipartData() {
@@ -381,8 +420,13 @@ public class ReportPortalRestAssuredLoggingFilterTest {
 			@Override
 			public Object getContent() {
 				return file ?
-						new File(System.getProperty("user.dir") + System.getProperty("file.separator") + String.join(System.getProperty(
-								"file.separator"), "src", "test", "resources", filePath)) :
+						new File(System.getProperty("user.dir") + System.getProperty("file.separator") + String.join(
+								System.getProperty("file.separator"),
+								"src",
+								"test",
+								"resources",
+								filePath
+						)) :
 						getResource(filePath);
 			}
 
@@ -428,14 +472,16 @@ public class ReportPortalRestAssuredLoggingFilterTest {
 		FilterableRequestSpecification requestSpecification = mockBasicRequest(mimeType);
 		when(requestSpecification.getMultiPartParams()).thenReturn(Collections.singletonList(part));
 
-		Triple<List<String>, List<String>, List<ReportPortalMessage>> logs = runFilterComplexMessageCapture(requestSpecification, null);
+		Triple<List<String>, List<String>, List<ReportPortalMessage>> logs = runFilterComplexMessageCapture(requestSpecification,
+				null
+		);
 		assertThat(logs.getLeft(), hasSize(1));
 		assertThat(logs.getMiddle(), hasSize(1));
 		assertThat(logs.getRight(), hasSize(1));
 
 		assertThat(logs.getLeft().get(0), equalTo(EMPTY_REQUEST));
-		assertThat(logs.getMiddle().get(0), equalTo(ReportPortalRestAssuredLoggingFilter.NULL_RESPONSE));
-		assertThat(logs.getRight().get(0).getMessage(), equalTo(ReportPortalRestAssuredLoggingFilter.BODY_PART_TAG + "\n" + imageType));
+		assertThat(logs.getMiddle().get(0), equalTo(NULL_RESPONSE));
+		assertThat(logs.getRight().get(0).getMessage(), equalTo(Constants.BODY_PART_TAG + "\n" + imageType));
 		assertThat(logs.getRight().get(0).getData().getMediaType(), equalTo(imageType));
 		assertThat(logs.getRight().get(0).getData().read(), equalTo(image));
 	}
@@ -493,7 +539,9 @@ public class ReportPortalRestAssuredLoggingFilterTest {
 				getBinaryPart(ContentType.IMAGE_JPEG.getMimeType(), IMAGE, false)
 		));
 
-		Triple<List<String>, List<String>, List<ReportPortalMessage>> logs = runFilterComplexMessageCapture(requestSpecification, null);
+		Triple<List<String>, List<String>, List<ReportPortalMessage>> logs = runFilterComplexMessageCapture(requestSpecification,
+				null
+		);
 		assertThat(logs.getLeft(), hasSize(1));
 		assertThat(logs.getMiddle(), hasSize(2));
 		assertThat(logs.getRight(), hasSize(1));
@@ -501,19 +549,18 @@ public class ReportPortalRestAssuredLoggingFilterTest {
 		assertThat(logs.getLeft().get(0), equalTo(EMPTY_REQUEST));
 
 		assertThat(logs.getMiddle().get(0),
-				equalTo(ReportPortalRestAssuredLoggingFilter.HEADERS_TAG + "\n" + HttpHeaders.CONTENT_TYPE + ": " + textType + "\n\n"
-						+ ReportPortalRestAssuredLoggingFilter.BODY_PART_TAG + "\n```\n" + message + "\n```")
+				equalTo(Constants.HEADERS_TAG + "\n" + HttpHeaders.CONTENT_TYPE + ": " + textType + "\n\n"
+						+ Constants.BODY_PART_TAG + "\n```\n" + message + "\n```")
 		);
-		assertThat(logs.getMiddle().get(1), equalTo(ReportPortalRestAssuredLoggingFilter.NULL_RESPONSE));
+		assertThat(logs.getMiddle().get(1), equalTo(NULL_RESPONSE));
 
-		assertThat(logs.getRight().get(0).getMessage(), equalTo(ReportPortalRestAssuredLoggingFilter.BODY_PART_TAG + "\n" + imageType));
+		assertThat(logs.getRight().get(0).getMessage(), equalTo(Constants.BODY_PART_TAG + "\n" + imageType));
 		assertThat(logs.getRight().get(0).getData().getMediaType(), equalTo(imageType));
 		assertThat(logs.getRight().get(0).getData().read(), equalTo(image));
 	}
 
 	public static Iterable<Object[]> invalidContentTypes() {
-		return Arrays.asList(
-				new Object[] { "", ContentType.APPLICATION_OCTET_STREAM.getMimeType() },
+		return Arrays.asList(new Object[] { "", ContentType.APPLICATION_OCTET_STREAM.getMimeType() },
 				new Object[] { null, ContentType.APPLICATION_OCTET_STREAM.getMimeType() },
 				new Object[] { "*/*", "*/*" },
 				new Object[] { "something invalid", "something invalid" },
@@ -537,8 +584,7 @@ public class ReportPortalRestAssuredLoggingFilterTest {
 		when(responseObject.getBody()).thenReturn(responseBodyObject);
 		when(responseBodyObject.asByteArray()).thenReturn(image);
 
-		Triple<List<String>, List<String>, List<ReportPortalMessage>> logs = runFilterComplexMessageCapture(
-				requestSpecification,
+		Triple<List<String>, List<String>, List<ReportPortalMessage>> logs = runFilterComplexMessageCapture(requestSpecification,
 				responseObject
 		);
 		assertThat(logs.getRight(), hasSize(2)); // Request + Response
@@ -550,5 +596,17 @@ public class ReportPortalRestAssuredLoggingFilterTest {
 
 		assertThat(logs.getRight().get(0).getData().read(), equalTo(image));
 		assertThat(logs.getRight().get(1).getData().read(), equalTo(image));
+	}
+
+	@Test
+	public void test_rest_assured_log_filter_type() {
+		FilterableRequestSpecification requestSpecification = mockBasicRequest(HTML_TYPE);
+		Response responseObject = mockBasicResponse(HTML_TYPE);
+		Triple<List<String>, List<String>, List<ReportPortalMessage>> logs = runFilterComplexMessageCapture(
+				requestSpecification,
+				responseObject,
+				new ReportPortalRestAssuredLoggingFilter(42, LogLevel.INFO).addRequestFilter(r -> true)
+		);
+		assertThat(logs.getRight(), hasSize(0));
 	}
 }

@@ -101,9 +101,10 @@ public class BaseTest {
 		RestAssured.filters(new ReportPortalRestAssuredLoggingFilter(
 				42,
 				LogLevel.INFO,
-				Converters.HEADER_SANITIZING_CONVERTER,
-				Converters.COOKIE_SANITIZING_CONVERTER,
-				Converters.URI_SANITIZING_CONVERTER
+				DefaultHttpHeaderConverter.HEADER_SANITIZING_CONVERTER,
+				DefaultHttpHeaderConverter.INSTANCE,
+				DefaultCookieConverter.INSTANCE,
+				DefaultUriConverter.INSTANCE
 		));
 	}
 }
@@ -118,15 +119,15 @@ E.G.:
 ```java
 public class BaseTest {
 	private static final Map<String, Function<String, String>> MY_PRETTIERS = new HashMap<String, Function<String, String>>() {{
-		put(ContentType.APPLICATION_XML.getMimeType(), Converters.XML_PRETTIER);
-		put(ContentType.APPLICATION_SOAP_XML.getMimeType(), Converters.XML_PRETTIER);
-		put(ContentType.APPLICATION_ATOM_XML.getMimeType(), Converters.XML_PRETTIER);
-		put(ContentType.APPLICATION_SVG_XML.getMimeType(), Converters.XML_PRETTIER);
-		put(ContentType.APPLICATION_XHTML_XML.getMimeType(), Converters.XML_PRETTIER);
-		put(ContentType.TEXT_XML.getMimeType(), Converters.XML_PRETTIER);
-		put(ContentType.APPLICATION_JSON.getMimeType(), Converters.JSON_PRETTIER);
-		put("text/json", Converters.JSON_PRETTIER);
-		put(ContentType.TEXT_HTML.getMimeType(), Converters.HTML_PRETTIER);
+		put(ContentType.APPLICATION_XML.getMimeType(), XmlPrettier.INSTANCE);
+		put(ContentType.APPLICATION_SOAP_XML.getMimeType(), XmlPrettier.INSTANCE);
+		put(ContentType.APPLICATION_ATOM_XML.getMimeType(), XmlPrettier.INSTANCE);
+		put(ContentType.APPLICATION_SVG_XML.getMimeType(), XmlPrettier.INSTANCE);
+		put(ContentType.APPLICATION_XHTML_XML.getMimeType(), XmlPrettier.INSTANCE);
+		put(ContentType.TEXT_XML.getMimeType(), XmlPrettier.INSTANCE);
+		put(ContentType.APPLICATION_JSON.getMimeType(), JsonPrettier.INSTANCE);
+		put("text/json", JsonPrettier.INSTANCE);
+		put(ContentType.TEXT_HTML.getMimeType(), HtmlPrettier.INSTANCE);
 	}};
 
 	static {

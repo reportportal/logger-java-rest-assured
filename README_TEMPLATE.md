@@ -80,9 +80,10 @@ public class ApiTest {
 }
 ```
 
-> **NOTE**: If you have more than one suite in your execution then it will mean REST Assured will be initialized over and over again with
-> the Logger and you will get log duplication in the following suites. You can apply `RestAssured.reset();` before the filter adding to avod
-> that. But this also means you will have to configure REST Assured anew each suite.
+> **NOTE**: If you have more than one suite in your execution then it will mean REST Assured will be initialized over
+> and over again with the Logger and you will get log duplication in the following suites. You can apply
+> `RestAssured.reset();` before the filter adding to avoid that. But this also means you will have to configure
+> REST Assured anew each suite.
 
 ### Sanitize Request / Response data
 

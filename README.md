@@ -101,7 +101,7 @@ public class BaseTest {
 		RestAssured.filters(new ReportPortalRestAssuredLoggingFilter(
 				42,
 				LogLevel.INFO,
-				DefaultHttpHeaderConverter.HEADER_SANITIZING_CONVERTER,
+				SanitizingHttpHeaderConverter.INSTANCE,
 				DefaultHttpHeaderConverter.INSTANCE,
 				DefaultCookieConverter.INSTANCE,
 				DefaultUriConverter.INSTANCE

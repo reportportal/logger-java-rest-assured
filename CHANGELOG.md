@@ -1,6 +1,8 @@
 # Changelog
 
 ## [Unreleased]
+
+## [5.2.0]
 ### Added
 - `ReportPortalRestAssuredLoggingFilter.addRequestFilter` method to be able to allow skipping certain request logging, by @HardNorth
 - `application/x-www-form-urlencoded` body type handling, by @HardNorth

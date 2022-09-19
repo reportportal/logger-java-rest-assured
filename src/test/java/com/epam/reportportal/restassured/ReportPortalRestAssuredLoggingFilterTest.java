@@ -414,8 +414,8 @@ public class ReportPortalRestAssuredLoggingFilterTest {
 		assertThat(logs.get(0), equalTo(EMPTY_REQUEST));
 	}
 
-	@SuppressWarnings("SameParameterValue")
-	private MultiPartSpecification getBinaryPart(String mimeType, String filePath, boolean file) {
+	private MultiPartSpecification getBinaryPart(String mimeType, String filePath, boolean file,
+			Map<String, String> headers) {
 		return new MultiPartSpecification() {
 			@Override
 			public Object getContent() {
@@ -442,7 +442,7 @@ public class ReportPortalRestAssuredLoggingFilterTest {
 
 			@Override
 			public Map<String, String> getHeaders() {
-				return null;
+				return headers;
 			}
 
 			@Override
@@ -460,6 +460,11 @@ public class ReportPortalRestAssuredLoggingFilterTest {
 				return false;
 			}
 		};
+	}
+
+	@SuppressWarnings("SameParameterValue")
+	private MultiPartSpecification getBinaryPart(String mimeType, String filePath, boolean file) {
+		return getBinaryPart(mimeType, filePath, file, null);
 	}
 
 	@ParameterizedTest
@@ -608,5 +613,35 @@ public class ReportPortalRestAssuredLoggingFilterTest {
 				new ReportPortalRestAssuredLoggingFilter(42, LogLevel.INFO).addRequestFilter(r -> true)
 		);
 		assertThat(logs.getRight(), hasSize(0));
+	}
+
+	@Test
+	public void test_rest_assured_logger_text_as_file_multipart() {
+		String textPath = "test.json";
+		String text = JsonPrettier.INSTANCE.apply(new String(getResource(textPath)));
+		String requestType = ContentType.MULTIPART_FORM_DATA.getMimeType();
+		String textType = ContentType.APPLICATION_JSON.getMimeType();
+
+		FilterableRequestSpecification requestSpecification = mockBasicRequest(requestType);
+		when(requestSpecification.getMultiPartParams()).thenReturn(Collections.singletonList(getBinaryPart(textType,
+				textPath,
+				true,
+				Collections.singletonMap(HttpHeaders.CONTENT_TYPE, textType)
+		)));
+
+		Triple<List<String>, List<String>, List<ReportPortalMessage>> logs = runFilterComplexMessageCapture(requestSpecification,
+				null
+		);
+		assertThat(logs.getLeft(), hasSize(1));
+		assertThat(logs.getMiddle(), hasSize(2));
+		assertThat(logs.getRight(), hasSize(0));
+
+		assertThat(logs.getLeft().get(0), equalTo(EMPTY_REQUEST));
+
+		assertThat(logs.getMiddle().get(0),
+				equalTo(Constants.HEADERS_TAG + "\n" + HttpHeaders.CONTENT_TYPE + ": " + textType + "\n\n"
+						+ Constants.BODY_PART_TAG + "\n```\n" + text + "\n```")
+		);
+		assertThat(logs.getMiddle().get(1), equalTo(NULL_RESPONSE));
 	}
 }

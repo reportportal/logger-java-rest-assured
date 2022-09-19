@@ -7,7 +7,7 @@
 [![stackoverflow](https://img.shields.io/badge/reportportal-stackoverflow-orange.svg?style=flat)](http://stackoverflow.com/questions/tagged/reportportal)
 [![Build with Love](https://img.shields.io/badge/build%20with-❤%EF%B8%8F%E2%80%8D-lightgrey.svg)](http://reportportal.io?style=flat)
 
-The latest version: 5.2.0. Please use `Maven Central` link above to get the logger.
+The latest version: 5.2.1. Please use `Maven Central` link above to get the logger.
 
 ## Overview
 
@@ -36,7 +36,7 @@ You need to add the logger as one of your dependencies in Maven or Gradle.
         <dependency>
             <groupId>com.epam.reportportal</groupId>
             <artifactId>logger-java-rest-assured</artifactId>
-            <version>5.2.0</version>
+            <version>5.2.1</version>
         </dependency>
     </dependencies>
 
@@ -50,7 +50,7 @@ You need to add the logger as one of your dependencies in Maven or Gradle.
 
 ```groovy
 dependencies {
-    testCompile 'com.epam.reportportal:logger-java-rest-assured:5.2.0'
+    testCompile 'com.epam.reportportal:logger-java-rest-assured:5.2.1'
 }
 ```
 
@@ -68,8 +68,8 @@ public class BaseTest {
 }
 ```
 
-If you don't have a base class, you can put initialization into one of the most general initialization block. E.G.
-for TestNG it may be `@BeforeSuite`:
+If you don't have a base class, you can put initialization into one of the most general initialization block. E.G. for
+TestNG it may be `@BeforeSuite`:
 
 ```java
 public class ApiTest {
@@ -80,9 +80,9 @@ public class ApiTest {
 }
 ```
 
-> **NOTE**: If you have more than one suite in your execution then it will mean REST Assured will be initialized over 
+> **NOTE**: If you have more than one suite in your execution then it will mean REST Assured will be initialized over
 > and over again with the Logger and you will get log duplication in the following suites. You can apply
-> `RestAssured.reset();` before the filter adding to avoid that. But this also means you will have to configure 
+> `RestAssured.reset();` before the filter adding to avoid that. But this also means you will have to configure
 > REST Assured anew each suite.
 
 ### Sanitize Request / Response data

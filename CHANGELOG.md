@@ -1,6 +1,8 @@
 # Changelog
 
 ## [Unreleased]
+### Fixed
+- Passing Multipart request part as `java.io.File` with text type, by @HardNorth
 
 ## [5.2.0]
 ### Added

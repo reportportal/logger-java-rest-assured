@@ -68,8 +68,8 @@ public class BaseTest {
 }
 ```
 
-If you don't have a base class, you can pui initialization into one of the most general initialization block. E.G. for TestNG it may be
-`@BeforeSuite`:
+If you don't have a base class, you can put initialization into one of the most general initialization block. E.G. for
+TestNG it may be `@BeforeSuite`:
 
 ```java
 public class ApiTest {
@@ -80,9 +80,10 @@ public class ApiTest {
 }
 ```
 
-> **NOTE**: If you have more than one suite in your execution then it will mean REST Assured will be initialized over and over again with
-> the Logger and you will get log duplication in the following suites. You can apply `RestAssured.reset();` before the filter adding to avod
-> that. But this also means you will have to configure REST Assured anew each suite.
+> **NOTE**: If you have more than one suite in your execution then it will mean REST Assured will be initialized over
+> and over again with the Logger and you will get log duplication in the following suites. You can apply
+> `RestAssured.reset();` before the filter adding to avoid that. But this also means you will have to configure
+> REST Assured anew each suite.
 
 ### Sanitize Request / Response data
 
@@ -101,7 +102,7 @@ public class BaseTest {
 		RestAssured.filters(new ReportPortalRestAssuredLoggingFilter(
 				42,
 				LogLevel.INFO,
-				DefaultHttpHeaderConverter.HEADER_SANITIZING_CONVERTER,
+				SanitizingHttpHeaderConverter.INSTANCE,
 				DefaultHttpHeaderConverter.INSTANCE,
 				DefaultCookieConverter.INSTANCE,
 				DefaultUriConverter.INSTANCE

@@ -22,7 +22,9 @@ import com.epam.reportportal.formatting.http.HttpResponseFormatter;
 import com.epam.reportportal.formatting.http.entities.BodyType;
 import com.epam.reportportal.formatting.http.entities.Cookie;
 import com.epam.reportportal.formatting.http.entities.Header;
+import com.epam.reportportal.message.TypeAwareByteSource;
 import com.epam.reportportal.service.ReportPortal;
+import com.epam.reportportal.utils.files.Utils;
 import io.restassured.response.Response;
 import io.restassured.response.ResponseBodyData;
 import io.restassured.specification.FilterableRequestSpecification;
@@ -32,6 +34,8 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.io.File;
 import java.io.IOException;
+import java.io.UnsupportedEncodingException;
+import java.nio.charset.StandardCharsets;
 import java.util.Calendar;
 import java.util.Map;
 import java.util.function.Function;
@@ -88,24 +92,36 @@ public class HttpEntityFactory {
 					String partMimeType = ofNullable(it.getMimeType()).orElse(ContentType.APPLICATION_OCTET_STREAM.getMimeType());
 					HttpPartFormatter.Builder partBuilder;
 					try {
+						Object body = it.getContent();
+						HttpPartFormatter.PartType partType;
 						if (BodyType.TEXT == getBodyType(partMimeType, bodyTypeMap)) {
-							partBuilder = new HttpPartFormatter.Builder(HttpPartFormatter.PartType.TEXT,
-									partMimeType,
-									it.getContent()
-							);
+							partType = HttpPartFormatter.PartType.TEXT;
 						} else {
-							Object body = it.getContent();
-							if (body instanceof File) {
-								partBuilder = new HttpPartFormatter.Builder(HttpPartFormatter.PartType.BINARY,
-										(File) it.getContent()
-								);
-							} else {
-								partBuilder = new HttpPartFormatter.Builder(HttpPartFormatter.PartType.BINARY,
-										partMimeType,
-										it.getContent()
-								);
-							}
+							partType = HttpPartFormatter.PartType.BINARY;
 						}
+
+						Object content;
+						if (body instanceof File) {
+							TypeAwareByteSource file = Utils.getFile((File) body);
+							byte[] data = file.read();
+							if (partType == HttpPartFormatter.PartType.TEXT) {
+								content = ofNullable(data).map(d -> {
+									try {
+										return new String(d,
+												ofNullable(it.getCharset()).orElse(StandardCharsets.UTF_8.name())
+										);
+									} catch (UnsupportedEncodingException e) {
+										throw new IllegalStateException(e);
+									}
+								}).orElse("");
+							} else {
+								content = data;
+							}
+						} else {
+							content = body;
+						}
+						partBuilder = new HttpPartFormatter.Builder(partType, partMimeType, content);
+
 						ofNullable(it.getHeaders()).ifPresent(headers -> headers.forEach((key, value) -> partBuilder.addHeader(
 								new Header(key, value))));
 						partBuilder.controlName(it.getControlName());

@@ -39,9 +39,6 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Function;
 import java.util.function.Predicate;
 
-import static com.epam.reportportal.formatting.http.Constants.BODY_TYPE_MAP;
-import static com.epam.reportportal.formatting.http.Constants.DEFAULT_PRETTIERS;
-
 /**
  * REST Assured Request/Response logging filter for Report Portal.
  * <p>
@@ -64,10 +61,6 @@ public class ReportPortalRestAssuredLoggingFilter extends AbstractHttpFormatter<
 
 	private final int order;
 
-	private Map<String, Function<String, String>> contentPrettiers = DEFAULT_PRETTIERS;
-
-	private Map<String, BodyType> bodyTypeMap = BODY_TYPE_MAP;
-
 	/**
 	 * Create an ordered REST Assured filter with the log level and different converters.
 	 *
@@ -89,8 +82,7 @@ public class ReportPortalRestAssuredLoggingFilter extends AbstractHttpFormatter<
 			@Nullable Function<Header, String> partHeaderConvertFunction,
 			@Nullable Function<Cookie, String> cookieConvertFunction,
 			@Nullable Function<String, String> uriConverterFunction) {
-		super(
-				defaultLogLevel,
+		super(defaultLogLevel,
 				headerConvertFunction,
 				partHeaderConvertFunction,
 				cookieConvertFunction,

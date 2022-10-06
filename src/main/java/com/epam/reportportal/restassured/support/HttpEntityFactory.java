@@ -90,7 +90,6 @@ public class HttpEntityFactory {
 			case MULTIPART:
 				ofNullable(requestSpecification.getMultiPartParams()).ifPresent(params -> params.forEach(it -> {
 					String partMimeType = ofNullable(it.getMimeType()).orElse(ContentType.APPLICATION_OCTET_STREAM.getMimeType());
-					HttpPartFormatter.Builder partBuilder;
 					try {
 						Object body = it.getContent();
 						HttpPartFormatter.PartType partType;
@@ -120,8 +119,11 @@ public class HttpEntityFactory {
 						} else {
 							content = body;
 						}
-						partBuilder = new HttpPartFormatter.Builder(partType, partMimeType, content);
-
+						HttpPartFormatter.Builder partBuilder = new HttpPartFormatter.Builder(
+								partType,
+								partMimeType,
+								content
+						);
 						ofNullable(it.getHeaders()).ifPresent(headers -> headers.forEach((key, value) -> partBuilder.addHeader(
 								new Header(key, value))));
 						partBuilder.controlName(it.getControlName());

@@ -5,7 +5,7 @@
 - Common field duplication in child class, by @HardNorth
 ### Changed
 - Some refactoring, by @HardNorth
-- `utils-java-formatting` library version updated on version [5.1.3](https://github.com/reportportal/utils-java-formatting/releases/tag/5.1.3)
+- `utils-java-formatting` library version updated on version [5.1.3](https://github.com/reportportal/utils-java-formatting/releases/tag/5.1.3), by @HardNorth
 
 ## [5.2.1]
 ### Fixed

@@ -36,9 +36,9 @@ import java.io.File;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.nio.charset.StandardCharsets;
-import java.util.Calendar;
-import java.util.Map;
+import java.util.*;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 
 import static com.epam.reportportal.formatting.http.HttpFormatUtils.getBodyType;
 import static com.epam.reportportal.formatting.http.HttpFormatUtils.getMimeType;
@@ -48,6 +48,56 @@ import static java.util.Optional.ofNullable;
  * Factory class to convert Rest-Assured entities to internal ones.
  */
 public class HttpEntityFactory {
+
+	@Nonnull
+	private static List<HttpPartFormatter> toParts(@Nonnull FilterableRequestSpecification request,
+			@Nonnull Map<String, BodyType> bodyTypeMap, @Nullable Function<Header, String> partHeaderConverter) {
+		return ofNullable(request.getMultiPartParams()).map(params -> params.stream().map(it -> {
+			String partMimeType = ofNullable(it.getMimeType()).orElse(ContentType.APPLICATION_OCTET_STREAM.getMimeType());
+			try {
+				Object body = it.getContent();
+				HttpPartFormatter.PartType partType;
+				if (BodyType.TEXT == getBodyType(partMimeType, bodyTypeMap)) {
+					partType = HttpPartFormatter.PartType.TEXT;
+				} else {
+					partType = HttpPartFormatter.PartType.BINARY;
+				}
+
+				Object content;
+				if (body instanceof File) {
+					TypeAwareByteSource file = Utils.getFile((File) body);
+					byte[] data = file.read();
+					if (partType == HttpPartFormatter.PartType.TEXT) {
+						content = ofNullable(data).map(d -> {
+							try {
+								return new String(d, ofNullable(it.getCharset()).orElse(StandardCharsets.UTF_8.name()));
+							} catch (UnsupportedEncodingException e) {
+								throw new IllegalStateException(e);
+							}
+						}).orElse("");
+					} else {
+						content = data;
+					}
+				} else {
+					content = body;
+				}
+				HttpPartFormatter.Builder partBuilder = new HttpPartFormatter.Builder(partType, partMimeType, content);
+				ofNullable(it.getHeaders()).ifPresent(headers -> headers.forEach((key, value) -> partBuilder.addHeader(
+						new Header(key, value))));
+				partBuilder.controlName(it.getControlName());
+				partBuilder.charset(it.getCharset());
+				partBuilder.fileName(it.getFileName());
+				partBuilder.headerConverter(partHeaderConverter);
+				return partBuilder.build();
+			} catch (IOException e) {
+				ReportPortal.emitLog("Unable to read file: " + e.getMessage(),
+						"ERROR",
+						Calendar.getInstance().getTime()
+				);
+				return null;
+			}
+		}).filter(Objects::nonNull).collect(Collectors.toList())).orElse(Collections.emptyList());
+	}
 
 	@Nonnull
 	public static HttpRequestFormatter createHttpRequestFormatter(
@@ -88,54 +138,7 @@ public class HttpEntityFactory {
 				builder.bodyParams(requestSpecification.getFormParams());
 				break;
 			case MULTIPART:
-				ofNullable(requestSpecification.getMultiPartParams()).ifPresent(params -> params.forEach(it -> {
-					String partMimeType = ofNullable(it.getMimeType()).orElse(ContentType.APPLICATION_OCTET_STREAM.getMimeType());
-					HttpPartFormatter.Builder partBuilder;
-					try {
-						Object body = it.getContent();
-						HttpPartFormatter.PartType partType;
-						if (BodyType.TEXT == getBodyType(partMimeType, bodyTypeMap)) {
-							partType = HttpPartFormatter.PartType.TEXT;
-						} else {
-							partType = HttpPartFormatter.PartType.BINARY;
-						}
-
-						Object content;
-						if (body instanceof File) {
-							TypeAwareByteSource file = Utils.getFile((File) body);
-							byte[] data = file.read();
-							if (partType == HttpPartFormatter.PartType.TEXT) {
-								content = ofNullable(data).map(d -> {
-									try {
-										return new String(d,
-												ofNullable(it.getCharset()).orElse(StandardCharsets.UTF_8.name())
-										);
-									} catch (UnsupportedEncodingException e) {
-										throw new IllegalStateException(e);
-									}
-								}).orElse("");
-							} else {
-								content = data;
-							}
-						} else {
-							content = body;
-						}
-						partBuilder = new HttpPartFormatter.Builder(partType, partMimeType, content);
-
-						ofNullable(it.getHeaders()).ifPresent(headers -> headers.forEach((key, value) -> partBuilder.addHeader(
-								new Header(key, value))));
-						partBuilder.controlName(it.getControlName());
-						partBuilder.charset(it.getCharset());
-						partBuilder.fileName(it.getFileName());
-						partBuilder.headerConverter(partHeaderConverter);
-						builder.addBodyPart(partBuilder.build());
-					} catch (IOException e) {
-						ReportPortal.emitLog("Unable to read file: " + e.getMessage(),
-								"ERROR",
-								Calendar.getInstance().getTime()
-						);
-					}
-				}));
+				toParts(requestSpecification, bodyTypeMap, partHeaderConverter).forEach(builder::addBodyPart);
 				break;
 			default:
 				builder.bodyBytes(mimeType, requestSpecification.getBody());

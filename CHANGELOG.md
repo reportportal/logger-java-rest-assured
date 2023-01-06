@@ -1,6 +1,8 @@
 # Changelog
 
 ## [Unreleased]
+
+## [5.2.2]
 ### Fixed
 - Common field duplication in child class, by @HardNorth
 ### Changed

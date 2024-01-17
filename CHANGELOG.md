@@ -1,6 +1,10 @@
 # Changelog
 
 ## [Unreleased]
+### Changed
+- Client version updated on [5.2.0](https://github.com/reportportal/client-java/releases/tag/5.2.0), by @HardNorth
+- `utils-java-formatting` library version updated on version [5.2.0](https://github.com/reportportal/utils-java-formatting/releases/tag/5.2.0), by @HardNorth
+- Rest-Assured dependency marked as `implementation` to force users specify their own versions, by @HardNorth
 
 ## [5.2.4]
 ### Changed

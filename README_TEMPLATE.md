@@ -1,6 +1,6 @@
 # Report Portal logger for REST Assured
 
-[![Maven Central](https://img.shields.io/maven-central/v/com.epam.reportportal/logger-java-rest-assured.svg?label=Maven%20Central)](https://search.maven.org/search?q=g:%22com.epam.reportportal%22%20AND%20a:%22logger-java-rest-assured%22)
+[![Maven Central](https://img.shields.io/maven-central/v/com.epam.reportportal/logger-java-rest-assured.svg?label=Maven%20Central)](https://central.sonatype.com/artifact/com.epam.reportportal/logger-java-rest-assured)
 [![CI Build](https://github.com/reportportal/logger-java-rest-assured/actions/workflows/ci.yml/badge.svg)](https://github.com/reportportal/logger-java-rest-assured/actions/workflows/ci.yml)
 [![codecov](https://codecov.io/gh/reportportal/logger-java-rest-assured/branch/develop/graph/badge.svg?token=W3MTDF607A)](https://codecov.io/gh/reportportal/logger-java-rest-assured)
 [![Join Slack chat!](https://slack.epmrpp.reportportal.io/badge.svg)](https://slack.epmrpp.reportportal.io/)

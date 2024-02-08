@@ -1,6 +1,8 @@
 # Changelog
 
 ## [Unreleased]
+
+## [5.3.2]
 ### Changed
 - `utils-java-formatting` dependency marked back as `api`, by @HardNorth
 

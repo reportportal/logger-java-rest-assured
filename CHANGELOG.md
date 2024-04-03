@@ -1,6 +1,10 @@
 # Changelog
 
 ## [Unreleased]
+### Changed
+- Client version updated on [5.2.11](https://github.com/reportportal/client-java/releases/tag/5.2.11), by @HardNorth
+- `client-java` dependency marked as `compileOnly`, by @HardNorth
+- `utils-java-formatting` dependency version updated on [5.2.2](https://github.com/reportportal/utils-java-formatting/releases/tag/5.2.2), by @HardNorth
 
 ## [5.3.2]
 ### Changed

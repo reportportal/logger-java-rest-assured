@@ -1,6 +1,9 @@
 # Changelog
 
 ## [Unreleased]
+### Changed
+- Client version updated on [5.2.13](https://github.com/reportportal/client-java/releases/tag/5.2.13), by @HardNorth
+- `utils-java-formatting` dependency version updated on [5.2.3](https://github.com/reportportal/utils-java-formatting/releases/tag/5.2.3), by @HardNorth
 
 ## [5.3.3]
 ### Changed

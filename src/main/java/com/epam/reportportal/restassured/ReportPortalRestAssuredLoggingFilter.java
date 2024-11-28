@@ -26,6 +26,8 @@ import com.epam.reportportal.formatting.http.entities.Header;
 import com.epam.reportportal.listeners.LogLevel;
 import com.epam.reportportal.restassured.support.HttpEntityFactory;
 import com.epam.reportportal.service.ReportPortal;
+import io.restassured.config.LogConfig;
+import io.restassured.config.RestAssuredConfig;
 import io.restassured.filter.FilterContext;
 import io.restassured.filter.OrderedFilter;
 import io.restassured.response.Response;
@@ -38,6 +40,9 @@ import java.util.*;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Function;
 import java.util.function.Predicate;
+
+import static com.epam.reportportal.formatting.http.Constants.REMOVED_TAG;
+import static java.util.Optional.ofNullable;
 
 /**
  * REST Assured Request/Response logging filter for Report Portal.
@@ -78,16 +83,9 @@ public class ReportPortalRestAssuredLoggingFilter extends AbstractHttpFormatter<
 	 *                                  URI "as is"
 	 */
 	public ReportPortalRestAssuredLoggingFilter(int filterOrder, @Nonnull LogLevel defaultLogLevel,
-			@Nullable Function<Header, String> headerConvertFunction,
-			@Nullable Function<Header, String> partHeaderConvertFunction,
-			@Nullable Function<Cookie, String> cookieConvertFunction,
-			@Nullable Function<String, String> uriConverterFunction) {
-		super(defaultLogLevel,
-				headerConvertFunction,
-				partHeaderConvertFunction,
-				cookieConvertFunction,
-				uriConverterFunction
-		);
+			@Nullable Function<Header, String> headerConvertFunction, @Nullable Function<Header, String> partHeaderConvertFunction,
+			@Nullable Function<Cookie, String> cookieConvertFunction, @Nullable Function<String, String> uriConverterFunction) {
+		super(defaultLogLevel, headerConvertFunction, partHeaderConvertFunction, cookieConvertFunction, uriConverterFunction);
 		order = filterOrder;
 	}
 
@@ -106,10 +104,10 @@ public class ReportPortalRestAssuredLoggingFilter extends AbstractHttpFormatter<
 	 *                                  formats Cookies with <code>toString</code> method
 	 */
 	public ReportPortalRestAssuredLoggingFilter(int filterOrder, @Nonnull LogLevel defaultLogLevel,
-			@Nullable Function<Header, String> headerConvertFunction,
-			@Nullable Function<Header, String> partHeaderConvertFunction,
+			@Nullable Function<Header, String> headerConvertFunction, @Nullable Function<Header, String> partHeaderConvertFunction,
 			@Nullable Function<Cookie, String> cookieConvertFunction) {
-		this(filterOrder,
+		this(
+				filterOrder,
 				defaultLogLevel,
 				headerConvertFunction,
 				partHeaderConvertFunction,
@@ -131,14 +129,8 @@ public class ReportPortalRestAssuredLoggingFilter extends AbstractHttpFormatter<
 	 * @param partHeaderConvertFunction the same as fot HTTP Headers, but for parts in Multipart request
 	 */
 	public ReportPortalRestAssuredLoggingFilter(int filterOrder, @Nonnull LogLevel defaultLogLevel,
-			@Nullable Function<Header, String> headerConvertFunction,
-			@Nullable Function<Header, String> partHeaderConvertFunction) {
-		this(filterOrder,
-				defaultLogLevel,
-				headerConvertFunction,
-				partHeaderConvertFunction,
-				DefaultCookieConverter.INSTANCE
-		);
+			@Nullable Function<Header, String> headerConvertFunction, @Nullable Function<Header, String> partHeaderConvertFunction) {
+		this(filterOrder, defaultLogLevel, headerConvertFunction, partHeaderConvertFunction, DefaultCookieConverter.INSTANCE);
 	}
 
 	/**
@@ -159,14 +151,31 @@ public class ReportPortalRestAssuredLoggingFilter extends AbstractHttpFormatter<
 	}
 
 	@Override
-	public Response filter(FilterableRequestSpecification requestSpec, FilterableResponseSpecification responseSpec,
-			FilterContext ctx) {
-		if (requestFilters.stream().anyMatch(f -> f.test(requestSpec))) {
+	public Response filter(FilterableRequestSpecification requestSpec, FilterableResponseSpecification responseSpec, FilterContext ctx) {
+		if (requestSpec == null || requestFilters.stream().anyMatch(f -> f.test(requestSpec))) {
 			return ctx.next(requestSpec, responseSpec);
 		}
-		emitLog(HttpEntityFactory.createHttpRequestFormatter(requestSpec,
+
+		Set<String> blacklistedHeaders = ofNullable(requestSpec.getConfig()).map(RestAssuredConfig::getLogConfig)
+				.map(LogConfig::blacklistedHeaders)
+				.filter(headers -> !headers.isEmpty())
+				.orElse(null);
+		Function<Header, String> myHeaderConverter = headerConverter;
+		if (blacklistedHeaders != null) {
+			myHeaderConverter = header -> {
+				if (!blacklistedHeaders.contains(header.getName())) {
+					return headerConverter.apply(header);
+				}
+				Header newHeader = header.clone();
+				newHeader.setValue(REMOVED_TAG);
+				return headerConverter.apply(newHeader);
+			};
+		}
+
+		emitLog(HttpEntityFactory.createHttpRequestFormatter(
+				requestSpec,
 				uriConverter,
-				headerConverter,
+				myHeaderConverter,
 				cookieConverter,
 				contentPrettiers,
 				partHeaderConverter,
@@ -176,7 +185,8 @@ public class ReportPortalRestAssuredLoggingFilter extends AbstractHttpFormatter<
 		if (response == null) {
 			ReportPortal.emitLog(NULL_RESPONSE, logLevel, Calendar.getInstance().getTime());
 		} else {
-			emitLog(HttpEntityFactory.createHttpResponseFormatter(response,
+			emitLog(HttpEntityFactory.createHttpResponseFormatter(
+					response,
 					headerConverter,
 					cookieConverter,
 					contentPrettiers,
@@ -191,14 +201,12 @@ public class ReportPortalRestAssuredLoggingFilter extends AbstractHttpFormatter<
 		return this;
 	}
 
-	public ReportPortalRestAssuredLoggingFilter setContentPrettiers(
-			@Nonnull Map<String, Function<String, String>> contentPrettiers) {
+	public ReportPortalRestAssuredLoggingFilter setContentPrettiers(@Nonnull Map<String, Function<String, String>> contentPrettiers) {
 		this.contentPrettiers = Collections.unmodifiableMap(new HashMap<>(contentPrettiers));
 		return this;
 	}
 
-	public ReportPortalRestAssuredLoggingFilter addRequestFilter(
-			@Nonnull Predicate<FilterableRequestSpecification> requestFilter) {
+	public ReportPortalRestAssuredLoggingFilter addRequestFilter(@Nonnull Predicate<FilterableRequestSpecification> requestFilter) {
 		requestFilters.add(requestFilter);
 		return this;
 	}

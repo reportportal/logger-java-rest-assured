@@ -68,13 +68,11 @@ public class HttpEntityFactory {
 					TypeAwareByteSource file = Utils.getFile((File) body);
 					byte[] data = file.read();
 					if (partType == HttpPartFormatter.PartType.TEXT) {
-						content = ofNullable(data).map(d -> {
-							try {
-								return new String(d, ofNullable(it.getCharset()).orElse(StandardCharsets.UTF_8.name()));
-							} catch (UnsupportedEncodingException e) {
-								throw new IllegalStateException(e);
-							}
-						}).orElse("");
+						try {
+							content = new String(data, ofNullable(it.getCharset()).orElse(StandardCharsets.UTF_8.name()));
+						} catch (UnsupportedEncodingException e) {
+							throw new IllegalStateException(e);
+						}
 					} else {
 						content = data;
 					}
@@ -82,37 +80,37 @@ public class HttpEntityFactory {
 					content = body;
 				}
 				HttpPartFormatter.Builder partBuilder = new HttpPartFormatter.Builder(partType, partMimeType, content);
-				ofNullable(it.getHeaders()).ifPresent(headers -> headers.forEach((key, value) -> partBuilder.addHeader(
-						new Header(key, value))));
+				ofNullable(it.getHeaders()).ifPresent(headers -> headers.forEach((key, value) -> partBuilder.addHeader(new Header(
+						key,
+						value
+				))));
 				partBuilder.controlName(it.getControlName());
 				partBuilder.charset(it.getCharset());
 				partBuilder.fileName(it.getFileName());
 				partBuilder.headerConverter(partHeaderConverter);
 				return partBuilder.build();
 			} catch (IOException e) {
-				ReportPortal.emitLog("Unable to read file: " + e.getMessage(),
-						"ERROR",
-						Calendar.getInstance().getTime()
-				);
+				ReportPortal.emitLog("Unable to read file: " + e.getMessage(), "ERROR", Calendar.getInstance().getTime());
 				return null;
 			}
 		}).filter(Objects::nonNull).collect(Collectors.toList())).orElse(Collections.emptyList());
 	}
 
 	@Nonnull
-	public static HttpRequestFormatter createHttpRequestFormatter(
-			@Nonnull FilterableRequestSpecification requestSpecification,
+	public static HttpRequestFormatter createHttpRequestFormatter(@Nonnull FilterableRequestSpecification requestSpecification,
 			@Nullable Function<String, String> uriConverter, @Nullable Function<Header, String> headerConverter,
-			@Nullable Function<Cookie, String> cookieConverter,
-			@Nullable Map<String, Function<String, String>> prettiers,
+			@Nullable Function<Cookie, String> cookieConverter, @Nullable Map<String, Function<String, String>> prettiers,
 			@Nullable Function<Header, String> partHeaderConverter, @Nonnull Map<String, BodyType> bodyTypeMap) {
-		HttpRequestFormatter.Builder builder = new HttpRequestFormatter.Builder(requestSpecification.getMethod(),
+		HttpRequestFormatter.Builder builder = new HttpRequestFormatter.Builder(
+				requestSpecification.getMethod(),
 				requestSpecification.getURI()
 		);
-		ofNullable(requestSpecification.getHeaders()).ifPresent(headers -> headers.forEach(h -> builder.addHeader(h.getName(),
+		ofNullable(requestSpecification.getHeaders()).ifPresent(headers -> headers.forEach(h -> builder.addHeader(
+				h.getName(),
 				h.getValue()
 		)));
-		ofNullable(requestSpecification.getCookies()).ifPresent(cookies -> cookies.forEach(c -> builder.addCookie(c.getName(),
+		ofNullable(requestSpecification.getCookies()).ifPresent(cookies -> cookies.forEach(c -> builder.addCookie(
+				c.getName(),
 				c.getValue(),
 				c.getComment(),
 				c.getPath(),
@@ -124,10 +122,7 @@ public class HttpEntityFactory {
 				c.getVersion(),
 				c.getSameSite()
 		)));
-		builder.uriConverter(uriConverter)
-				.headerConverter(headerConverter)
-				.cookieConverter(cookieConverter)
-				.prettiers(prettiers);
+		builder.uriConverter(uriConverter).headerConverter(headerConverter).cookieConverter(cookieConverter).prettiers(prettiers);
 		String mimeType = getMimeType(requestSpecification.getContentType());
 		BodyType bodyType = getBodyType(requestSpecification.getContentType(), bodyTypeMap);
 		switch (bodyType) {
@@ -150,13 +145,10 @@ public class HttpEntityFactory {
 	public static HttpResponseFormatter createHttpResponseFormatter(@Nonnull Response response,
 			@Nullable Function<Header, String> headerConverter, @Nullable Function<Cookie, String> cookieConverter,
 			@Nullable Map<String, Function<String, String>> prettiers, @Nonnull Map<String, BodyType> bodyTypeMap) {
-		HttpResponseFormatter.Builder builder = new HttpResponseFormatter.Builder(response.statusCode(),
-				response.getStatusLine()
-		);
-		ofNullable(response.getHeaders()).ifPresent(headers -> headers.forEach(h -> builder.addHeader(h.getName(),
-				h.getValue()
-		)));
-		ofNullable(response.getDetailedCookies()).ifPresent(cookies -> cookies.forEach(c -> builder.addCookie(c.getName(),
+		HttpResponseFormatter.Builder builder = new HttpResponseFormatter.Builder(response.statusCode(), response.getStatusLine());
+		ofNullable(response.getHeaders()).ifPresent(headers -> headers.forEach(h -> builder.addHeader(h.getName(), h.getValue())));
+		ofNullable(response.getDetailedCookies()).ifPresent(cookies -> cookies.forEach(c -> builder.addCookie(
+				c.getName(),
 				c.getValue(),
 				c.getComment(),
 				c.getPath(),

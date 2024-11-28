@@ -1,6 +1,11 @@
 # Changelog
 
 ## [Unreleased]
+### Added
+- RestAssured blacklisted headers support, by @HardNorth
+### Changed
+- Client version updated on [5.2.23](https://github.com/reportportal/client-java/releases/tag/5.2.23), by @HardNorth
+- `utils-java-formatting` dependency version updated on [5.2.4](https://github.com/reportportal/utils-java-formatting/releases/tag/5.2.4), by @HardNorth
 
 ## [5.3.4]
 ### Changed

@@ -187,7 +187,7 @@ public class ReportPortalRestAssuredLoggingFilter extends AbstractHttpFormatter<
 		} else {
 			emitLog(HttpEntityFactory.createHttpResponseFormatter(
 					response,
-					headerConverter,
+					myHeaderConverter,
 					cookieConverter,
 					contentPrettiers,
 					bodyTypeMap

@@ -1,6 +1,8 @@
 # Changelog
 
 ## [Unreleased]
+
+## [5.3.6]
 ### Added
 - RestAssured blacklisted headers support on Response, by @HardNorth
 

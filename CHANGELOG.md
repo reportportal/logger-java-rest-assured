@@ -1,6 +1,8 @@
 # Changelog
 
 ## [Unreleased]
+
+## [5.3.5]
 ### Added
 - RestAssured blacklisted headers support, by @HardNorth
 ### Changed

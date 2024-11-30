@@ -641,18 +641,22 @@ public class ReportPortalRestAssuredLoggingFilterTest {
 	@Test
 	public void test_rest_assured_header_filter() {
 		FilterableRequestSpecification requestSpecification = mockBasicRequest(HTML_TYPE);
-		RestAssuredConfig config = RestAssuredConfig.config().logConfig(LogConfig.logConfig().blacklistHeader("Authorization"));
+		RestAssuredConfig config = RestAssuredConfig.config().logConfig(
+				LogConfig.logConfig().blacklistHeader("Authorization").blacklistHeader("Set-Cookie"));
 		when(requestSpecification.getConfig()).thenReturn(config);
-		Headers headers = new Headers(new Header(HttpHeaders.AUTHORIZATION, "Bearer some_token"));
-		when(requestSpecification.getHeaders()).thenReturn(headers);
+		Headers requestHeaders = new Headers(new Header(HttpHeaders.AUTHORIZATION, "Bearer some_token"));
+		when(requestSpecification.getHeaders()).thenReturn(requestHeaders);
 		Response responseObject = mockBasicResponse(HTML_TYPE);
+		Headers responseHeaders = new Headers(new Header("Set-Cookie", "cookie"));
+		when(responseObject.getHeaders()).thenReturn(responseHeaders);
 
 		List<String> logs = runFilterTextMessageCapture(requestSpecification, responseObject);
 		assertThat(logs, hasSize(2)); // Request + Response
 
-		String headerString = "\n\n**Headers**\n" + HttpHeaders.AUTHORIZATION + ": " + REMOVED_TAG;
+		String requestHeaderString = "\n\n**Headers**\n" + HttpHeaders.AUTHORIZATION + ": " + REMOVED_TAG;
+		assertThat(logs.get(0), equalTo(EMPTY_REQUEST + requestHeaderString));
 
-		assertThat(logs.get(0), equalTo(EMPTY_REQUEST + headerString));
-		assertThat(logs.get(1), equalTo(EMPTY_RESPONSE));
+		String responseHeaderString = "\n\n**Headers**\nSet-Cookie: " + REMOVED_TAG;
+		assertThat(logs.get(1), equalTo(EMPTY_RESPONSE + responseHeaderString));
 	}
 }

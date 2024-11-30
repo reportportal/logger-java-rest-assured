@@ -108,7 +108,7 @@ public class ReportPortalRestAssuredLoggingFilterTest {
 
 			@Override
 			public Response next(FilterableRequestSpecification requestSpecification,
-					FilterableResponseSpecification responseSpecification) {
+								 FilterableResponseSpecification responseSpecification) {
 				return response;
 			}
 		};
@@ -116,15 +116,15 @@ public class ReportPortalRestAssuredLoggingFilterTest {
 
 	public static Iterable<Object[]> requestData() {
 		return Arrays.asList(
-				new Object[] { JSON_TYPE, "{\"object\": {\"key\": \"value\"}}", "{\"object\": {\"key\": \"value\"}}", JsonPrettier.INSTANCE,
-						null, null },
-				new Object[] { "application/xml", "<test><key><value>value</value></key></test>",
-						"<test><key><value>value</value></key></test>", XmlPrettier.INSTANCE, null, null }
+				new Object[]{JSON_TYPE, "{\"object\": {\"key\": \"value\"}}", "{\"object\": {\"key\": \"value\"}}",
+						JsonPrettier.INSTANCE, null, null},
+				new Object[]{"application/xml", "<test><key><value>value</value></key></test>",
+						"<test><key><value>value</value></key></test>", XmlPrettier.INSTANCE, null, null}
 		);
 	}
 
 	private void runFilter(FilterableRequestSpecification requestSpecification, Response responseObject,
-			Consumer<MockedStatic<ReportPortal>> mocks, OrderedFilter filter) {
+						   Consumer<MockedStatic<ReportPortal>> mocks, OrderedFilter filter) {
 		try (MockedStatic<ReportPortal> utilities = Mockito.mockStatic(ReportPortal.class)) {
 			mocks.accept(utilities);
 			filter.filter(requestSpecification, null, getFilterContext(responseObject));
@@ -132,7 +132,7 @@ public class ReportPortalRestAssuredLoggingFilterTest {
 	}
 
 	private void runFilter(FilterableRequestSpecification requestSpecification, Response responseObject,
-			Consumer<MockedStatic<ReportPortal>> mocks) {
+						   Consumer<MockedStatic<ReportPortal>> mocks) {
 		runFilter(requestSpecification, responseObject, mocks, new ReportPortalRestAssuredLoggingFilter(42, LogLevel.INFO));
 	}
 
@@ -147,7 +147,7 @@ public class ReportPortalRestAssuredLoggingFilterTest {
 	}
 
 	private List<ReportPortalMessage> runFilterBinaryMessageCapture(FilterableRequestSpecification requestSpecification,
-			Response responseObject) {
+																	Response responseObject) {
 		ArgumentCaptor<ReportPortalMessage> logCapture = ArgumentCaptor.forClass(ReportPortalMessage.class);
 		runFilter(
 				requestSpecification,
@@ -222,7 +222,7 @@ public class ReportPortalRestAssuredLoggingFilterTest {
 	@MethodSource("requestData")
 	@SuppressWarnings("rawtypes")
 	public void test_rest_assured_logger_text_body(String mimeType, Object requestBody, Object responseBody,
-			Function<String, String> prettier) {
+												   Function<String, String> prettier) {
 		FilterableRequestSpecification requestSpecification = mockBasicRequest(mimeType);
 		when(requestSpecification.getBody()).thenReturn(requestBody);
 
@@ -244,7 +244,7 @@ public class ReportPortalRestAssuredLoggingFilterTest {
 	}
 
 	public static Iterable<Object[]> testTypes() {
-		return Arrays.asList(new Object[] { HTML_TYPE }, new Object[] { null });
+		return Arrays.asList(new Object[]{HTML_TYPE}, new Object[]{null});
 	}
 
 	@ParameterizedTest
@@ -361,7 +361,7 @@ public class ReportPortalRestAssuredLoggingFilterTest {
 	private static final String WILDCARD_TYPE = "*/*";
 
 	@ParameterizedTest
-	@ValueSource(strings = { IMAGE_TYPE, WILDCARD_TYPE })
+	@ValueSource(strings = {IMAGE_TYPE, WILDCARD_TYPE})
 	@SuppressWarnings("rawtypes")
 	public void test_rest_assured_logger_image_body(String mimeType) throws IOException {
 		FilterableRequestSpecification requestSpecification = mockBasicRequest(mimeType);
@@ -461,7 +461,7 @@ public class ReportPortalRestAssuredLoggingFilterTest {
 	}
 
 	@ParameterizedTest
-	@ValueSource(booleans = { true, false })
+	@ValueSource(booleans = {true, false})
 	public void test_rest_assured_logger_image_multipart(boolean isFile) throws IOException {
 		byte[] image = getResource(IMAGE);
 		String imageType = ContentType.IMAGE_JPEG.getMimeType();
@@ -557,13 +557,13 @@ public class ReportPortalRestAssuredLoggingFilterTest {
 
 	public static Iterable<Object[]> invalidContentTypes() {
 		return Arrays.asList(
-				new Object[] { "", ContentType.APPLICATION_OCTET_STREAM.getMimeType() },
-				new Object[] { null, ContentType.APPLICATION_OCTET_STREAM.getMimeType() },
-				new Object[] { "*/*", "*/*" },
-				new Object[] { "something invalid", "something invalid" },
-				new Object[] { "/", "/" },
-				new Object[] { "#*'\\`%^!@/\"$;", "#*'\\`%^!@/\"$" },
-				new Object[] { "a/a;F#%235f\\=f324$%^&", "a/a" }
+				new Object[]{"", ContentType.APPLICATION_OCTET_STREAM.getMimeType()},
+				new Object[]{null, ContentType.APPLICATION_OCTET_STREAM.getMimeType()},
+				new Object[]{"*/*", "*/*"},
+				new Object[]{"something invalid", "something invalid"},
+				new Object[]{"/", "/"},
+				new Object[]{"#*'\\`%^!@/\"$;", "#*'\\`%^!@/\"$"},
+				new Object[]{"a/a;F#%235f\\=f324$%^&", "a/a"}
 		);
 	}
 

@@ -26,6 +26,7 @@ import com.epam.reportportal.message.ReportPortalMessage;
 import com.epam.reportportal.service.Launch;
 import com.epam.reportportal.service.ReportPortal;
 import com.epam.reportportal.service.step.StepReporter;
+import com.epam.reportportal.util.test.CommonUtils;
 import com.epam.reportportal.utils.files.Utils;
 import io.restassured.config.LogConfig;
 import io.restassured.config.RestAssuredConfig;
@@ -167,7 +168,7 @@ public class ReportPortalRestAssuredLoggingFilterTest {
 			StepReporter reporter = mock(StepReporter.class);
 			utilities.when(Launch::currentLaunch).thenReturn(launch);
 			when(launch.getStepReporter()).thenReturn(reporter);
-			doNothing().when(reporter).sendStep(any(ItemStatus.class), stepCaptor.capture());
+			when(reporter.sendStep(any(ItemStatus.class), stepCaptor.capture())).thenReturn(CommonUtils.createMaybeUuid());
 			runFilter(
 					requestSpecification, responseObject, mock -> {
 						mock.when(() -> ReportPortal.emitLog(stringArgumentCaptor.capture(), anyString(), any(Date.class)))

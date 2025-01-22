@@ -26,6 +26,7 @@ import com.epam.reportportal.message.ReportPortalMessage;
 import com.epam.reportportal.service.Launch;
 import com.epam.reportportal.service.ReportPortal;
 import com.epam.reportportal.service.step.StepReporter;
+import com.epam.reportportal.util.test.CommonUtils;
 import com.epam.reportportal.utils.files.Utils;
 import io.restassured.config.LogConfig;
 import io.restassured.config.RestAssuredConfig;
@@ -108,7 +109,7 @@ public class ReportPortalRestAssuredLoggingFilterTest {
 
 			@Override
 			public Response next(FilterableRequestSpecification requestSpecification,
-					FilterableResponseSpecification responseSpecification) {
+								 FilterableResponseSpecification responseSpecification) {
 				return response;
 			}
 		};
@@ -116,15 +117,15 @@ public class ReportPortalRestAssuredLoggingFilterTest {
 
 	public static Iterable<Object[]> requestData() {
 		return Arrays.asList(
-				new Object[] { JSON_TYPE, "{\"object\": {\"key\": \"value\"}}", "{\"object\": {\"key\": \"value\"}}", JsonPrettier.INSTANCE,
-						null, null },
-				new Object[] { "application/xml", "<test><key><value>value</value></key></test>",
-						"<test><key><value>value</value></key></test>", XmlPrettier.INSTANCE, null, null }
+				new Object[]{JSON_TYPE, "{\"object\": {\"key\": \"value\"}}", "{\"object\": {\"key\": \"value\"}}",
+						JsonPrettier.INSTANCE, null, null},
+				new Object[]{"application/xml", "<test><key><value>value</value></key></test>",
+						"<test><key><value>value</value></key></test>", XmlPrettier.INSTANCE, null, null}
 		);
 	}
 
 	private void runFilter(FilterableRequestSpecification requestSpecification, Response responseObject,
-			Consumer<MockedStatic<ReportPortal>> mocks, OrderedFilter filter) {
+						   Consumer<MockedStatic<ReportPortal>> mocks, OrderedFilter filter) {
 		try (MockedStatic<ReportPortal> utilities = Mockito.mockStatic(ReportPortal.class)) {
 			mocks.accept(utilities);
 			filter.filter(requestSpecification, null, getFilterContext(responseObject));
@@ -132,7 +133,7 @@ public class ReportPortalRestAssuredLoggingFilterTest {
 	}
 
 	private void runFilter(FilterableRequestSpecification requestSpecification, Response responseObject,
-			Consumer<MockedStatic<ReportPortal>> mocks) {
+						   Consumer<MockedStatic<ReportPortal>> mocks) {
 		runFilter(requestSpecification, responseObject, mocks, new ReportPortalRestAssuredLoggingFilter(42, LogLevel.INFO));
 	}
 
@@ -147,7 +148,7 @@ public class ReportPortalRestAssuredLoggingFilterTest {
 	}
 
 	private List<ReportPortalMessage> runFilterBinaryMessageCapture(FilterableRequestSpecification requestSpecification,
-			Response responseObject) {
+																	Response responseObject) {
 		ArgumentCaptor<ReportPortalMessage> logCapture = ArgumentCaptor.forClass(ReportPortalMessage.class);
 		runFilter(
 				requestSpecification,
@@ -167,7 +168,7 @@ public class ReportPortalRestAssuredLoggingFilterTest {
 			StepReporter reporter = mock(StepReporter.class);
 			utilities.when(Launch::currentLaunch).thenReturn(launch);
 			when(launch.getStepReporter()).thenReturn(reporter);
-			doNothing().when(reporter).sendStep(any(ItemStatus.class), stepCaptor.capture());
+			when(reporter.sendStep(any(ItemStatus.class), stepCaptor.capture())).thenReturn(CommonUtils.createMaybeUuid());
 			runFilter(
 					requestSpecification, responseObject, mock -> {
 						mock.when(() -> ReportPortal.emitLog(stringArgumentCaptor.capture(), anyString(), any(Date.class)))
@@ -222,7 +223,7 @@ public class ReportPortalRestAssuredLoggingFilterTest {
 	@MethodSource("requestData")
 	@SuppressWarnings("rawtypes")
 	public void test_rest_assured_logger_text_body(String mimeType, Object requestBody, Object responseBody,
-			Function<String, String> prettier) {
+												   Function<String, String> prettier) {
 		FilterableRequestSpecification requestSpecification = mockBasicRequest(mimeType);
 		when(requestSpecification.getBody()).thenReturn(requestBody);
 
@@ -244,7 +245,7 @@ public class ReportPortalRestAssuredLoggingFilterTest {
 	}
 
 	public static Iterable<Object[]> testTypes() {
-		return Arrays.asList(new Object[] { HTML_TYPE }, new Object[] { null });
+		return Arrays.asList(new Object[]{HTML_TYPE}, new Object[]{null});
 	}
 
 	@ParameterizedTest
@@ -361,7 +362,7 @@ public class ReportPortalRestAssuredLoggingFilterTest {
 	private static final String WILDCARD_TYPE = "*/*";
 
 	@ParameterizedTest
-	@ValueSource(strings = { IMAGE_TYPE, WILDCARD_TYPE })
+	@ValueSource(strings = {IMAGE_TYPE, WILDCARD_TYPE})
 	@SuppressWarnings("rawtypes")
 	public void test_rest_assured_logger_image_body(String mimeType) throws IOException {
 		FilterableRequestSpecification requestSpecification = mockBasicRequest(mimeType);
@@ -461,7 +462,7 @@ public class ReportPortalRestAssuredLoggingFilterTest {
 	}
 
 	@ParameterizedTest
-	@ValueSource(booleans = { true, false })
+	@ValueSource(booleans = {true, false})
 	public void test_rest_assured_logger_image_multipart(boolean isFile) throws IOException {
 		byte[] image = getResource(IMAGE);
 		String imageType = ContentType.IMAGE_JPEG.getMimeType();
@@ -557,13 +558,13 @@ public class ReportPortalRestAssuredLoggingFilterTest {
 
 	public static Iterable<Object[]> invalidContentTypes() {
 		return Arrays.asList(
-				new Object[] { "", ContentType.APPLICATION_OCTET_STREAM.getMimeType() },
-				new Object[] { null, ContentType.APPLICATION_OCTET_STREAM.getMimeType() },
-				new Object[] { "*/*", "*/*" },
-				new Object[] { "something invalid", "something invalid" },
-				new Object[] { "/", "/" },
-				new Object[] { "#*'\\`%^!@/\"$;", "#*'\\`%^!@/\"$" },
-				new Object[] { "a/a;F#%235f\\=f324$%^&", "a/a" }
+				new Object[]{"", ContentType.APPLICATION_OCTET_STREAM.getMimeType()},
+				new Object[]{null, ContentType.APPLICATION_OCTET_STREAM.getMimeType()},
+				new Object[]{"*/*", "*/*"},
+				new Object[]{"something invalid", "something invalid"},
+				new Object[]{"/", "/"},
+				new Object[]{"#*'\\`%^!@/\"$;", "#*'\\`%^!@/\"$"},
+				new Object[]{"a/a;F#%235f\\=f324$%^&", "a/a"}
 		);
 	}
 
@@ -641,18 +642,24 @@ public class ReportPortalRestAssuredLoggingFilterTest {
 	@Test
 	public void test_rest_assured_header_filter() {
 		FilterableRequestSpecification requestSpecification = mockBasicRequest(HTML_TYPE);
-		RestAssuredConfig config = RestAssuredConfig.config().logConfig(LogConfig.logConfig().blacklistHeader("Authorization"));
+		RestAssuredConfig config = RestAssuredConfig.config().logConfig(
+				LogConfig.logConfig().blacklistHeader("Authorization").blacklistHeader("Set-Cookie"));
 		when(requestSpecification.getConfig()).thenReturn(config);
-		Headers headers = new Headers(new Header(HttpHeaders.AUTHORIZATION, "Bearer some_token"));
-		when(requestSpecification.getHeaders()).thenReturn(headers);
+		Headers requestHeaders = new Headers(new Header(HttpHeaders.AUTHORIZATION, "Bearer some_token"),
+				new Header("Cookies", "request_cookie"));
+		when(requestSpecification.getHeaders()).thenReturn(requestHeaders);
 		Response responseObject = mockBasicResponse(HTML_TYPE);
+		Headers responseHeaders = new Headers(new Header("Set-Cookie", "response_cookie"));
+		when(responseObject.getHeaders()).thenReturn(responseHeaders);
 
 		List<String> logs = runFilterTextMessageCapture(requestSpecification, responseObject);
 		assertThat(logs, hasSize(2)); // Request + Response
 
-		String headerString = "\n\n**Headers**\n" + HttpHeaders.AUTHORIZATION + ": " + REMOVED_TAG;
+		String requestHeaderString = "\n\n**Headers**\n" + HttpHeaders.AUTHORIZATION + ": " + REMOVED_TAG +
+				"\nCookies: request_cookie";
+		assertThat(logs.get(0), equalTo(EMPTY_REQUEST + requestHeaderString));
 
-		assertThat(logs.get(0), equalTo(EMPTY_REQUEST + headerString));
-		assertThat(logs.get(1), equalTo(EMPTY_RESPONSE));
+		String responseHeaderString = "\n\n**Headers**\nSet-Cookie: " + REMOVED_TAG;
+		assertThat(logs.get(1), equalTo(EMPTY_RESPONSE + responseHeaderString));
 	}
 }

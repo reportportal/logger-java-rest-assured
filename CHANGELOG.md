@@ -1,6 +1,10 @@
 # Changelog
 
 ## [Unreleased]
+### Changed
+- `utils-java-formatting` dependency version updated on [5.2.6](https://github.com/reportportal/utils-java-formatting/releases/tag/5.2.6), by @HardNorth
+### Removed
+- `setBodyTypeMap` and `setContentPrettiers` methods from `ReportPortalRestAssuredLoggingFilter` class, since they duplicate those from `AbstractHttpFormatter` class, by @HardNorth
 
 ## [5.3.7]
 ### Changed

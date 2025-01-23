@@ -20,7 +20,6 @@ import com.epam.reportportal.formatting.AbstractHttpFormatter;
 import com.epam.reportportal.formatting.http.converters.DefaultCookieConverter;
 import com.epam.reportportal.formatting.http.converters.DefaultHttpHeaderConverter;
 import com.epam.reportportal.formatting.http.converters.DefaultUriConverter;
-import com.epam.reportportal.formatting.http.entities.BodyType;
 import com.epam.reportportal.formatting.http.entities.Cookie;
 import com.epam.reportportal.formatting.http.entities.Header;
 import com.epam.reportportal.listeners.LogLevel;
@@ -36,7 +35,9 @@ import io.restassured.specification.FilterableResponseSpecification;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
-import java.util.*;
+import java.util.Calendar;
+import java.util.List;
+import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -177,9 +178,9 @@ public class ReportPortalRestAssuredLoggingFilter extends AbstractHttpFormatter<
 				uriConverter,
 				myHeaderConverter,
 				cookieConverter,
-				contentPrettiers,
+				getContentPrettifiers(),
 				partHeaderConverter,
-				bodyTypeMap
+				getBodyTypeMap()
 		));
 		Response response = ctx.next(requestSpec, responseSpec);
 		if (response == null) {
@@ -189,23 +190,23 @@ public class ReportPortalRestAssuredLoggingFilter extends AbstractHttpFormatter<
 					response,
 					myHeaderConverter,
 					cookieConverter,
-					contentPrettiers,
-					bodyTypeMap
+					getContentPrettifiers(),
+					getBodyTypeMap()
 			));
 		}
 		return response;
 	}
 
-	public ReportPortalRestAssuredLoggingFilter setBodyTypeMap(@Nonnull Map<String, BodyType> typeMap) {
-		this.bodyTypeMap = Collections.unmodifiableMap(new HashMap<>(typeMap));
-		return this;
-	}
-
-	public ReportPortalRestAssuredLoggingFilter setContentPrettiers(@Nonnull Map<String, Function<String, String>> contentPrettiers) {
-		this.contentPrettiers = Collections.unmodifiableMap(new HashMap<>(contentPrettiers));
-		return this;
-	}
-
+	/**
+	 * Add a request filter to the filter.
+	 * <p>
+	 * The filter is used to determine whether the request should be logged or not. If the filter returns {@code true}, the request will be
+	 * skipped, otherwise it will be logged.
+	 *
+	 * @param requestFilter the request filter
+	 * @return the filter instance
+	 */
+	@Nonnull
 	public ReportPortalRestAssuredLoggingFilter addRequestFilter(@Nonnull Predicate<FilterableRequestSpecification> requestFilter) {
 		requestFilters.add(requestFilter);
 		return this;

@@ -22,6 +22,7 @@ import com.epam.reportportal.formatting.http.HttpResponseFormatter;
 import com.epam.reportportal.formatting.http.entities.BodyType;
 import com.epam.reportportal.formatting.http.entities.Cookie;
 import com.epam.reportportal.formatting.http.entities.Header;
+import com.epam.reportportal.formatting.http.entities.Param;
 import com.epam.reportportal.message.TypeAwareByteSource;
 import com.epam.reportportal.service.ReportPortal;
 import com.epam.reportportal.utils.files.Utils;
@@ -99,8 +100,9 @@ public class HttpEntityFactory {
 	@Nonnull
 	public static HttpRequestFormatter createHttpRequestFormatter(@Nonnull FilterableRequestSpecification requestSpecification,
 			@Nullable Function<String, String> uriConverter, @Nullable Function<Header, String> headerConverter,
-			@Nullable Function<Cookie, String> cookieConverter, @Nullable Map<String, Function<String, String>> prettiers,
-			@Nullable Function<Header, String> partHeaderConverter, @Nonnull Map<String, BodyType> bodyTypeMap) {
+			@Nullable Function<Cookie, String> cookieConverter, @Nullable Function<Param, String> paramConverter,
+			@Nullable Map<String, Function<String, String>> prettifiers, @Nullable Function<Header, String> partHeaderConverter,
+			@Nonnull Map<String, BodyType> bodyTypeMap) {
 		HttpRequestFormatter.Builder builder = new HttpRequestFormatter.Builder(
 				requestSpecification.getMethod(),
 				requestSpecification.getURI()
@@ -122,7 +124,11 @@ public class HttpEntityFactory {
 				c.getVersion(),
 				c.getSameSite()
 		)));
-		builder.uriConverter(uriConverter).headerConverter(headerConverter).cookieConverter(cookieConverter).prettiers(prettiers);
+		builder.uriConverter(uriConverter)
+				.headerConverter(headerConverter)
+				.cookieConverter(cookieConverter)
+				.paramConverter(paramConverter)
+				.prettifiers(prettifiers);
 		String mimeType = getMimeType(requestSpecification.getContentType());
 		BodyType bodyType = getBodyType(requestSpecification.getContentType(), bodyTypeMap);
 		switch (bodyType) {
@@ -144,7 +150,7 @@ public class HttpEntityFactory {
 	@Nonnull
 	public static HttpResponseFormatter createHttpResponseFormatter(@Nonnull Response response,
 			@Nullable Function<Header, String> headerConverter, @Nullable Function<Cookie, String> cookieConverter,
-			@Nullable Map<String, Function<String, String>> prettiers, @Nonnull Map<String, BodyType> bodyTypeMap) {
+			@Nullable Map<String, Function<String, String>> prettifiers, @Nonnull Map<String, BodyType> bodyTypeMap) {
 		HttpResponseFormatter.Builder builder = new HttpResponseFormatter.Builder(response.statusCode(), response.getStatusLine());
 		ofNullable(response.getHeaders()).ifPresent(headers -> headers.forEach(h -> builder.addHeader(h.getName(), h.getValue())));
 		ofNullable(response.getDetailedCookies()).ifPresent(cookies -> cookies.forEach(c -> builder.addCookie(
@@ -160,7 +166,7 @@ public class HttpEntityFactory {
 				c.getVersion(),
 				c.getSameSite()
 		)));
-		builder.headerConverter(headerConverter).cookieConverter(cookieConverter).prettiers(prettiers);
+		builder.headerConverter(headerConverter).cookieConverter(cookieConverter).prettifiers(prettifiers);
 
 		String type = getMimeType(response.getContentType());
 		BodyType bodyType = getBodyType(response.getContentType(), bodyTypeMap);

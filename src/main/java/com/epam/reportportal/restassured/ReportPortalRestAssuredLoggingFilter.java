@@ -18,10 +18,12 @@ package com.epam.reportportal.restassured;
 
 import com.epam.reportportal.formatting.AbstractHttpFormatter;
 import com.epam.reportportal.formatting.http.converters.DefaultCookieConverter;
+import com.epam.reportportal.formatting.http.converters.DefaultFormParamConverter;
 import com.epam.reportportal.formatting.http.converters.DefaultHttpHeaderConverter;
 import com.epam.reportportal.formatting.http.converters.DefaultUriConverter;
 import com.epam.reportportal.formatting.http.entities.Cookie;
 import com.epam.reportportal.formatting.http.entities.Header;
+import com.epam.reportportal.formatting.http.entities.Param;
 import com.epam.reportportal.listeners.LogLevel;
 import com.epam.reportportal.restassured.support.HttpEntityFactory;
 import com.epam.reportportal.service.ReportPortal;
@@ -67,8 +69,37 @@ public class ReportPortalRestAssuredLoggingFilter extends AbstractHttpFormatter<
 
 	private final int order;
 
+	protected final Function<Param, String> paramConverter;
+
 	/**
 	 * Create an ordered REST Assured filter with the log level and different converters.
+	 *
+	 * @param filterOrder               if you have different filters which modify requests on fly this parameter allows
+	 *                                  you to control the order when Report Portal logger will be called, and therefore
+	 *                                  log or don't log some data.
+	 * @param defaultLogLevel           log level on which REST Assured requests/responses will appear on Report Portal
+	 * @param headerConvertFunction     if you want to preprocess your HTTP Headers before they appear on Report Portal
+	 *                                  provide this custom function for the class, default function formats it like
+	 *                                  that: <code>header.getName() + ": " + header.getValue()</code>
+	 * @param partHeaderConvertFunction the same as fot HTTP Headers, but for parts in Multipart request
+	 * @param cookieConvertFunction     the same as 'headerConvertFunction' param but for Cookies, default function
+	 *                                  formats Cookies with <code>toString</code> method
+	 * @param uriConverterFunction      the same as 'headerConvertFunction' param but for URI, default function returns
+	 *                                  URI "as is"
+	 * @param paramConverter            the same as 'headerConvertFunction' param but for Web Form Params, default function returns
+	 *                                  <code>param.getName() + ": " + param.getValue()</code>
+	 */
+	public ReportPortalRestAssuredLoggingFilter(int filterOrder, @Nonnull LogLevel defaultLogLevel,
+			@Nullable Function<Header, String> headerConvertFunction, @Nullable Function<Header, String> partHeaderConvertFunction,
+			@Nullable Function<Cookie, String> cookieConvertFunction, @Nullable Function<String, String> uriConverterFunction,
+			@Nullable Function<Param, String> paramConverter) {
+		super(defaultLogLevel, headerConvertFunction, partHeaderConvertFunction, cookieConvertFunction, uriConverterFunction);
+		this.paramConverter = paramConverter != null ? paramConverter : DefaultFormParamConverter.INSTANCE;
+		order = filterOrder;
+	}
+
+	/**
+	 * Create an ordered REST Assured filter with the log level and different converters.z
 	 *
 	 * @param filterOrder               if you have different filters which modify requests on fly this parameter allows
 	 *                                  you to control the order when Report Portal logger will be called, and therefore
@@ -86,8 +117,15 @@ public class ReportPortalRestAssuredLoggingFilter extends AbstractHttpFormatter<
 	public ReportPortalRestAssuredLoggingFilter(int filterOrder, @Nonnull LogLevel defaultLogLevel,
 			@Nullable Function<Header, String> headerConvertFunction, @Nullable Function<Header, String> partHeaderConvertFunction,
 			@Nullable Function<Cookie, String> cookieConvertFunction, @Nullable Function<String, String> uriConverterFunction) {
-		super(defaultLogLevel, headerConvertFunction, partHeaderConvertFunction, cookieConvertFunction, uriConverterFunction);
-		order = filterOrder;
+		this(
+				filterOrder,
+				defaultLogLevel,
+				headerConvertFunction,
+				partHeaderConvertFunction,
+				cookieConvertFunction,
+				uriConverterFunction,
+				DefaultFormParamConverter.INSTANCE
+		);
 	}
 
 	/**
@@ -178,6 +216,7 @@ public class ReportPortalRestAssuredLoggingFilter extends AbstractHttpFormatter<
 				uriConverter,
 				myHeaderConverter,
 				cookieConverter,
+				paramConverter,
 				getContentPrettifiers(),
 				partHeaderConverter,
 				getBodyTypeMap()

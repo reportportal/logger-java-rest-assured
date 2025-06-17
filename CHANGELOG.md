@@ -1,6 +1,8 @@
 # Changelog
 
 ## [Unreleased]
+
+## [5.4.0]
 ### Changed
 - `utils-java-formatting` dependency version updated on [5.3.0](https://github.com/reportportal/utils-java-formatting/releases/tag/5.3.0), by @HardNorth
 

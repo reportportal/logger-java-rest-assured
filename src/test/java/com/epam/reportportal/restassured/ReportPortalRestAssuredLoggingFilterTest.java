@@ -55,6 +55,7 @@ import org.mockito.Mockito;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.FileSystems;
 import java.text.SimpleDateFormat;
 import java.util.*;
@@ -348,8 +349,8 @@ public class ReportPortalRestAssuredLoggingFilterTest {
 	}
 
 	@SuppressWarnings("SameParameterValue")
-	private byte[] getResource(String imagePath) {
-		return ofNullable(this.getClass().getClassLoader().getResourceAsStream(imagePath)).map(is -> {
+	private byte[] getResource(String resourcePath) {
+		return ofNullable(this.getClass().getClassLoader().getResourceAsStream(resourcePath)).map(is -> {
 			try {
 				return Utils.readInputStreamToBytes(is);
 			} catch (IOException e) {
@@ -612,7 +613,7 @@ public class ReportPortalRestAssuredLoggingFilterTest {
 	@Test
 	public void test_rest_assured_logger_text_as_file_multipart() {
 		String textPath = "test.json";
-		String text = JsonPrettifier.INSTANCE.apply(new String(getResource(textPath)));
+		String text = JsonPrettifier.INSTANCE.apply(new String(getResource(textPath), StandardCharsets.UTF_8));
 		String requestType = ContentType.MULTIPART_FORM_DATA.getMimeType();
 		String textType = ContentType.APPLICATION_JSON.getMimeType();
 

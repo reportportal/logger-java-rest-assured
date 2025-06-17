@@ -18,8 +18,8 @@ package com.epam.reportportal.restassured;
 
 import com.epam.reportportal.formatting.http.Constants;
 import com.epam.reportportal.formatting.http.converters.DefaultCookieConverter;
-import com.epam.reportportal.formatting.http.prettiers.JsonPrettier;
-import com.epam.reportportal.formatting.http.prettiers.XmlPrettier;
+import com.epam.reportportal.formatting.http.prettifiers.JsonPrettifier;
+import com.epam.reportportal.formatting.http.prettifiers.XmlPrettifier;
 import com.epam.reportportal.listeners.ItemStatus;
 import com.epam.reportportal.listeners.LogLevel;
 import com.epam.reportportal.message.ReportPortalMessage;
@@ -55,6 +55,7 @@ import org.mockito.Mockito;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.FileSystems;
 import java.text.SimpleDateFormat;
 import java.util.*;
@@ -118,9 +119,9 @@ public class ReportPortalRestAssuredLoggingFilterTest {
 	public static Iterable<Object[]> requestData() {
 		return Arrays.asList(
 				new Object[]{JSON_TYPE, "{\"object\": {\"key\": \"value\"}}", "{\"object\": {\"key\": \"value\"}}",
-						JsonPrettier.INSTANCE, null, null},
+						JsonPrettifier.INSTANCE, null, null},
 				new Object[]{"application/xml", "<test><key><value>value</value></key></test>",
-						"<test><key><value>value</value></key></test>", XmlPrettier.INSTANCE, null, null}
+						"<test><key><value>value</value></key></test>", XmlPrettifier.INSTANCE, null, null}
 		);
 	}
 
@@ -348,8 +349,8 @@ public class ReportPortalRestAssuredLoggingFilterTest {
 	}
 
 	@SuppressWarnings("SameParameterValue")
-	private byte[] getResource(String imagePath) {
-		return ofNullable(this.getClass().getClassLoader().getResourceAsStream(imagePath)).map(is -> {
+	private byte[] getResource(String resourcePath) {
+		return ofNullable(this.getClass().getClassLoader().getResourceAsStream(resourcePath)).map(is -> {
 			try {
 				return Utils.readInputStreamToBytes(is);
 			} catch (IOException e) {
@@ -612,7 +613,7 @@ public class ReportPortalRestAssuredLoggingFilterTest {
 	@Test
 	public void test_rest_assured_logger_text_as_file_multipart() {
 		String textPath = "test.json";
-		String text = JsonPrettier.INSTANCE.apply(new String(getResource(textPath)));
+		String text = JsonPrettifier.INSTANCE.apply(new String(getResource(textPath), StandardCharsets.UTF_8));
 		String requestType = ContentType.MULTIPART_FORM_DATA.getMimeType();
 		String textType = ContentType.APPLICATION_JSON.getMimeType();
 

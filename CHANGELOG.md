@@ -1,8 +1,12 @@
 # Changelog
 
 ## [Unreleased]
+### Changed
+- `utils-java-formatting` dependency version updated on [5.3.0](https://github.com/reportportal/utils-java-formatting/releases/tag/5.3.0), by @HardNorth
 
 ## [5.3.9]
+### Added
+- A constructor in `ReportPortalRestAssuredLoggingFilter` class which accepts `paramConverter` parameter, by @HardNorth
 ### Changed
 - `utils-java-formatting` dependency version updated on [5.2.7](https://github.com/reportportal/utils-java-formatting/releases/tag/5.2.7), by @HardNorth
 

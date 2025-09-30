@@ -29,8 +29,8 @@ project.ext.limits = [
         'class'      : 83
 ]
 
-sourceCompatibility = JavaVersion.VERSION_1_8
-targetCompatibility = JavaVersion.VERSION_1_8
+sourceCompatibility = JavaVersion.VERSION_11
+targetCompatibility = JavaVersion.VERSION_11
 
 repositories {
     mavenCentral()
@@ -41,12 +41,12 @@ dependencies {
     compileOnly "com.epam.reportportal:client-java:${client_version}"
     implementation 'com.google.code.findbugs:jsr305:3.0.2'
     implementation 'commons-codec:commons-codec:1.15'
-    implementation ('io.rest-assured:rest-assured:5.1.1') {
+    implementation ('io.rest-assured:rest-assured:5.5.6') {
         exclude module: 'commons-codec'
     }
 
     testImplementation "com.epam.reportportal:client-java:${client_version}"
-    testImplementation 'com.epam.reportportal:agent-java-test-utils:0.0.12'
+    testImplementation 'com.epam.reportportal:agent-java-test-utils:0.1.0'
 
     testImplementation("org.junit.platform:junit-platform-runner:${junit5_runner_version}") {
         exclude module: 'junit'

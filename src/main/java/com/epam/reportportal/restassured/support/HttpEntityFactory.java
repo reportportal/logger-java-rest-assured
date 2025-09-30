@@ -29,14 +29,15 @@ import com.epam.reportportal.utils.files.Utils;
 import io.restassured.response.Response;
 import io.restassured.response.ResponseBodyData;
 import io.restassured.specification.FilterableRequestSpecification;
+import jakarta.annotation.Nonnull;
+import jakarta.annotation.Nullable;
 import org.apache.http.entity.ContentType;
 
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 import java.io.File;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.nio.charset.StandardCharsets;
+import java.time.Instant;
 import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -91,7 +92,7 @@ public class HttpEntityFactory {
 				partBuilder.headerConverter(partHeaderConverter);
 				return partBuilder.build();
 			} catch (IOException e) {
-				ReportPortal.emitLog("Unable to read file: " + e.getMessage(), "ERROR", Calendar.getInstance().getTime());
+				ReportPortal.emitLog("Unable to read file: " + e.getMessage(), "ERROR", Instant.now());
 				return null;
 			}
 		}).filter(Objects::nonNull).collect(Collectors.toList())).orElse(Collections.emptyList());
@@ -120,7 +121,7 @@ public class HttpEntityFactory {
 				c.getMaxAge(),
 				c.isSecured(),
 				c.isHttpOnly(),
-				c.getExpiryDate(),
+				ofNullable(c.getExpiryDate()).map(Date::toInstant).orElse(null),
 				c.getVersion(),
 				c.getSameSite()
 		)));
@@ -162,7 +163,7 @@ public class HttpEntityFactory {
 				c.getMaxAge(),
 				c.isSecured(),
 				c.isHttpOnly(),
-				c.getExpiryDate(),
+				ofNullable(c.getExpiryDate()).map(Date::toInstant).orElse(null),
 				c.getVersion(),
 				c.getSameSite()
 		)));

@@ -1,6 +1,11 @@
 # Changelog
 
 ## [Unreleased]
+### Changed
+- Client version updated on [5.4.3](https://github.com/reportportal/client-java/releases/tag/5.4.3), by @HardNorth
+- Replace "jsr305" annotations with "jakarta.annotation-api", by @HardNorth
+- Switch on use of `Instant` class instead of `Date` to get more timestamp precision, by @HardNorth
+- `utils-java-formatting` dependency version updated on [5.4.0](https://github.com/reportportal/utils-java-formatting/releases/tag/5.4.0), by @HardNorth
 
 ## [5.4.0]
 ### Changed

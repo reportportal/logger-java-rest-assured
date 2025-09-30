@@ -34,10 +34,10 @@ import io.restassured.filter.OrderedFilter;
 import io.restassured.response.Response;
 import io.restassured.specification.FilterableRequestSpecification;
 import io.restassured.specification.FilterableResponseSpecification;
+import jakarta.annotation.Nonnull;
+import jakarta.annotation.Nullable;
 
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
-import java.util.Calendar;
+import java.time.Instant;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -223,7 +223,7 @@ public class ReportPortalRestAssuredLoggingFilter extends AbstractHttpFormatter<
 		));
 		Response response = ctx.next(requestSpec, responseSpec);
 		if (response == null) {
-			ReportPortal.emitLog(NULL_RESPONSE, logLevel, Calendar.getInstance().getTime());
+			ReportPortal.emitLog(NULL_RESPONSE, logLevel, Instant.now());
 		} else {
 			emitLog(HttpEntityFactory.createHttpResponseFormatter(
 					response,

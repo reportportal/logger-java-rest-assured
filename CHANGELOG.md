@@ -1,6 +1,8 @@
 # Changelog
 
 ## [Unreleased]
+
+## [5.5.1]
 ### Removed
 - JSR305 dependency, by @HardNorth
 
